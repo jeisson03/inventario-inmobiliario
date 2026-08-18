@@ -29,6 +29,7 @@
     .resumen-fotos { background: rgba(255,85,0,0.1); border: 1px solid rgba(255,85,0,0.2); border-radius: 12px; padding: 12px 16px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
     .resumen-fotos .count { font-size: 1.8rem; font-weight: 700; color: #FF5500; }
     .resumen-fotos .label { font-size: 0.8rem; color: #666666; }
+    .subida-info { font-size: 0.75rem; color: #FFB01A; margin-top: 4px; }
     .fotos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
     .foto-card { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.1); }
     .foto-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
@@ -112,7 +113,7 @@
           <div class="label">fotos capturadas</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:0.8rem; color:#8892b0;">Listas para guardar</div>
+          <div class="subida-info" id="subida-info"></div>
         </div>
       </div>
       <div style="display:flex; gap:10px; margin-top:14px;">
@@ -125,6 +126,7 @@
       <div id="progreso-container" style="display:none;">
         <div class="barra-progreso"><div class="barra-progreso-fill" id="barra-progreso"></div></div>
         <div class="texto-progreso" id="texto-progreso"></div>
+        <div class="subida-info" id="subida-info"></div>
       </div>
       <button class="boton boton-guardar" id="btn-guardar" onclick="guardarInmueble()">Guardar Inmueble</button>
       <button class="boton boton-cancelar" onclick="cancelarSesion()">Cancelar</button>
@@ -166,6 +168,8 @@
 
   <script>
     var API_URL = 'https://script.google.com/macros/s/AKfycbz4qb6U_zbKBK1a45i4FgyLC7RbfXmr4j9Wuvmlfzqtsbc2oh5gH-1eSDbreftQmnI3/exec';
+    var MAX_PARALELOS = 3;
+    var LOTE = 5;
 
     function apiGet(params) {
       var qs = '';
@@ -177,6 +181,11 @@
     var inmuebleActualId = null;
     var streamCamara = null;
     var flashOn = false;
+    var colaSubida = [];
+    var subiendo = 0;
+    var subidas = 0;
+    var totalFotos = 0;
+    var guardando = false;
 
     function iniciarSesion() {
       var nombre = document.getElementById('nombre-inmueble').value.trim();
@@ -189,6 +198,9 @@
         if (r && r.success) {
           inmuebleActualId = r.id;
           fotosCapturadas = [];
+          subidas = 0;
+          totalFotos = 0;
+          colaSubida = [];
           document.getElementById('seccion-nuevo').style.display = 'none';
           document.getElementById('seccion-captura').style.display = 'block';
           document.getElementById('inmueble-actual').textContent = nombre;
@@ -206,7 +218,7 @@
       document.getElementById('camara-overlay').classList.add('activo');
       actualizarCamStrip();
       navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
       }).then(function(stream) { streamCamara = stream; document.getElementById('camara-video').srcObject = stream; })
       .catch(function() { cerrarCamara(); alert('No se pudo acceder a la camara.'); });
     }
@@ -226,22 +238,99 @@
       var ctx = canvas.getContext('2d');
       if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0); ctx.filter = 'none';
-      var base64 = canvas.toDataURL('image/jpeg', 1.0).split(',')[1];
-      fotosCapturadas.push({ base64: base64, nombre: 'foto_' + (fotosCapturadas.length + 1) + '_' + Date.now() + '.jpg' });
+
+      var resizeCanvas = document.createElement('canvas');
+      var maxW = 1280;
+      var scale = maxW / canvas.width;
+      resizeCanvas.width = maxW;
+      resizeCanvas.height = canvas.height * scale;
+      resizeCanvas.getContext('2d').drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+      var foto = { base64: base64, nombre: 'foto_' + Date.now() + '_' + (fotosCapturadas.length + 1) + '.jpg', estado: 'pendiente' };
+      fotosCapturadas.push(foto);
+      totalFotos = fotosCapturadas.length;
+
       var vc = document.getElementById('camara-video-container');
       vc.classList.add('flash-anim'); setTimeout(function() { vc.classList.remove('flash-anim'); }, 150);
       document.getElementById('camara-contador').textContent = fotosCapturadas.length + ' fotos';
       document.getElementById('count-grande').textContent = fotosCapturadas.length;
       actualizarCamStrip();
+      actualizarSubidaInfo();
+
+      if (inmuebleActualId) {
+        colaSubida.push(foto);
+        procesarCola();
+      }
+    }
+
+    function procesarCola() {
+      while (subiendo < MAX_PARALELOS && colaSubida.length > 0) {
+        var lote = colaSubida.splice(0, LOTE);
+        subirLote(lote);
+      }
+    }
+
+    function subirLote(lote) {
+      subiendo++;
+      var iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.name = 'upload-' + Date.now();
+      document.body.appendChild(iframe);
+
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = API_URL;
+      form.target = iframe.name;
+      form.enctype = 'application/x-www-form-urlencoded';
+
+      var inputData = document.createElement('input');
+      inputData.type = 'hidden';
+      inputData.name = 'data';
+      inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote });
+      form.appendChild(inputData);
+      document.body.appendChild(form);
+
+      iframe.onload = function() {
+        subiendo--;
+        subidas += lote.length;
+        lote.forEach(function(f) { f.estado = 'subida'; });
+        actualizarSubidaInfo();
+        form.remove();
+        iframe.remove();
+        procesarCola();
+
+        if (guardando && subiendo === 0 && colaSubida.length === 0) {
+          finalizarGuardado();
+        }
+      };
+
+      form.submit();
+    }
+
+    function actualizarSubidaInfo() {
+      var el = document.getElementById('subida-info');
+      if (!el) return;
+      if (subidas >= totalFotos && totalFotos > 0) {
+        el.textContent = 'Todas las fotos subidas a Drive';
+        el.style.color = '#FFB01A';
+      } else if (subidas > 0) {
+        el.textContent = subidas + ' de ' + totalFotos + ' fotos subidas...';
+        el.style.color = '#FFB01A';
+      } else {
+        el.textContent = '';
+      }
+      var pct = totalFotos > 0 ? Math.round((subidas / totalFotos) * 100) : 0;
+      document.getElementById('barra-progreso').style.width = pct + '%';
     }
 
     function toggleFlash() { flashOn = !flashOn; document.getElementById('btn-flash').classList.toggle('flash-on', flashOn); }
 
     function actualizarCamStrip() {
       var strip = document.getElementById('cam-strip'); strip.innerHTML = '';
-      fotosCapturadas.forEach(function(f, i) {
+      fotosCapturadas.slice(-15).forEach(function(f, i) {
         var img = document.createElement('img');
-        img.className = 'cam-strip-thumb' + (i === fotosCapturadas.length - 1 ? ' ultima' : '');
+        img.className = 'cam-strip-thumb' + (i === fotosCapturadas.slice(-15).length - 1 ? ' ultima' : '');
         img.src = 'data:image/jpeg;base64,' + f.base64;
         strip.appendChild(img);
       });
@@ -257,9 +346,20 @@
         (function(archivo) {
           var reader = new FileReader();
           reader.onload = function(e) {
-            fotosCapturadas.push({ base64: e.target.result.split(',')[1], nombre: 'foto_' + (fotosCapturadas.length + 1) + '_' + Date.now() + '.jpg' });
+            var foto = { base64: e.target.result.split(',')[1], nombre: 'foto_' + Date.now() + '_' + (fotosCapturadas.length + 1) + '.jpg', estado: 'pendiente' };
+            fotosCapturadas.push(foto);
             procesadas++;
-            if (procesadas === archivos.length) { actualizarUI(); mostrarEstado(procesadas + ' fotos agregadas', 'activo'); }
+            if (procesadas === archivos.length) {
+              totalFotos = fotosCapturadas.length;
+              actualizarUI();
+              mostrarEstado(procesadas + ' fotos agregadas', 'activo');
+              if (inmuebleActualId) {
+                archivos.forEach(function(_, idx) {
+                  colaSubida.push(fotosCapturadas[fotosCapturadas.length - archivos.length + idx]);
+                });
+                procesarCola();
+              }
+            }
           };
           reader.readAsDataURL(archivo);
         })(archivos[i]);
@@ -275,13 +375,15 @@
       fotosCapturadas.forEach(function(f, i) {
         var div = document.createElement('div');
         div.className = 'foto-card';
-        div.innerHTML = '<img src="data:image/jpeg;base64,' + f.base64 + '"><span class="num">#' + (i + 1) + '</span><button class="btn-eliminar" onclick="eliminarFoto(' + i + ')">X</button>';
+        var indicador = f.estado === 'subida' ? '<span style="position:absolute;bottom:6px;left:6px;background:rgba(255,176,26,0.9);border-radius:4px;padding:1px 5px;font-size:0.6rem;font-weight:700;">OK</span>' : '';
+        div.innerHTML = '<img src="data:image/jpeg;base64,' + f.base64 + '"><span class="num">#' + (i + 1) + '</span>' + indicador + '<button class="btn-eliminar" onclick="eliminarFoto(' + i + ')">X</button>';
         grid.appendChild(div);
       });
     }
 
     function eliminarFoto(index) {
       fotosCapturadas.splice(index, 1);
+      totalFotos = fotosCapturadas.length;
       actualizarUI();
       var cc = document.getElementById('camara-contador');
       if (cc) cc.textContent = fotosCapturadas.length + ' fotos';
@@ -290,44 +392,21 @@
 
     function guardarInmueble() {
       if (fotosCapturadas.length === 0) { alert('Captura al menos una foto'); return; }
-      if (!confirm('Guardar ' + fotosCapturadas.length + ' fotos?')) return;
+      guardando = true;
       document.getElementById('btn-guardar').disabled = true;
       document.getElementById('progreso-container').style.display = 'block';
-      mostrarEstado('Guardando fotos...', 'guardando');
+      mostrarEstado('Subiendo fotos a Drive...', 'guardando');
 
-      var total = fotosCapturadas.length;
-      var enviados = 0;
-
-      var iframe = document.getElementById('upload-frame');
-      if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'upload-frame';
-        iframe.name = 'upload-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
+      if (subiendo === 0 && colaSubida.length === 0) {
+        finalizarGuardado();
       }
+    }
 
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = API_URL;
-      form.target = 'upload-frame';
-      form.enctype = 'application/x-www-form-urlencoded';
-
-      var inputData = document.createElement('input');
-      inputData.type = 'hidden';
-      inputData.name = 'data';
-      inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosCapturadas });
-      form.appendChild(inputData);
-
-      document.body.appendChild(form);
-
-      iframe.onload = function() {
-        document.getElementById('barra-progreso').style.width = '100%';
-        mostrarEstado('Guardado! ' + total + ' fotos en Drive', 'exito');
-        setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
-      };
-
-      form.submit();
+    function finalizarGuardado() {
+      guardando = false;
+      document.getElementById('barra-progreso').style.width = '100%';
+      mostrarEstado('Guardado! ' + totalFotos + ' fotos en Drive', 'exito');
+      setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
     }
 
     function cancelarSesion() {
@@ -337,6 +416,7 @@
 
     function reiniciarApp() {
       fotosCapturadas = []; inmuebleActualId = null;
+      colaSubida = []; subiendo = 0; subidas = 0; totalFotos = 0; guardando = false;
       document.getElementById('nombre-inmueble').value = '';
       document.getElementById('seccion-nuevo').style.display = 'block';
       document.getElementById('seccion-captura').style.display = 'none';
@@ -345,6 +425,7 @@
       document.getElementById('progreso-container').style.display = 'none';
       document.getElementById('barra-progreso').style.width = '0%';
       document.getElementById('estado-captura').style.display = 'none';
+      document.getElementById('subida-info').textContent = '';
     }
 
     function cargarInmuebles() {
@@ -363,26 +444,6 @@
         } else { c.innerHTML = '<p style="color:#ff6b6b;text-align:center;">Error al cargar</p>'; }
       }).catch(function() { c.innerHTML = '<p style="color:#ff6b6b;text-align:center;">Sin conexion</p>'; });
     }
-
-    function verFotos(carpetaId, nombre) {
-      document.getElementById('modal-titulo').textContent = nombre;
-      document.getElementById('modal-fotos').style.display = 'block';
-      var c = document.getElementById('modal-fotos-container');
-      c.innerHTML = '<p style="color:#8892b0;text-align:center;"><span class="spinner"></span> Cargando...</p>';
-      apiGet({ action: 'fotos', carpetaId: carpetaId }).then(function(r) {
-        if (r && r.success && r.fotos.length > 0) {
-          c.innerHTML = '';
-          r.fotos.forEach(function(f) {
-            var div = document.createElement('div');
-            div.style.cssText = 'margin-bottom:12px;border-radius:10px;overflow:hidden;';
-            div.innerHTML = '<img src="' + f.url + '" style="width:100%;display:block;"><div style="padding:8px;background:rgba(0,0,0,0.5);font-size:0.8rem;">' + f.nombre + '</div>';
-            c.appendChild(div);
-          });
-        } else { c.innerHTML = '<p style="color:#8892b0;text-align:center;">No hay fotos</p>'; }
-      }).catch(function() { c.innerHTML = '<p style="color:#ff6b6b;text-align:center;">Error</p>'; });
-    }
-
-    function cerrarModal() { document.getElementById('modal-fotos').style.display = 'none'; }
 
     function mostrarEstado(mensaje, tipo) {
       var e = document.getElementById('estado-captura');

@@ -134,7 +134,6 @@
         <div class="subida-info" id="subida-info"></div>
       </div>
       <button class="boton boton-guardar" id="btn-guardar" onclick="guardarInmueble()">Guardar Inmueble</button>
-      <button class="boton boton-guardar" id="btn-subir" onclick="subirGuardadas()" style="display:none;background:#FF5500;">Subir a Drive</button>
       <button class="boton boton-cancelar" onclick="cancelarSesion()">Cancelar</button>
     </div>
 
@@ -393,7 +392,7 @@
 
     function actualizarContador() {
       dbGetAll('fotos').then(function(fotos) {
-        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
+        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente' || f.estado === 'guardado'; });
         var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
         var el = document.getElementById('subida-info');
         if (pendientes.length > 0) {
@@ -417,7 +416,7 @@
       if (!estaOnline()) return;
 
       dbGetAll('fotos').then(function(fotos) {
-        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
+        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente' || f.estado === 'guardado'; });
         if (pendientes.length === 0) {
           if (guardando) { finalizarGuardado(); }
           return;
@@ -513,8 +512,8 @@
         }
         guardando = true;
         document.getElementById('btn-guardar').style.display = 'none';
+        document.getElementById('progreso-container').style.display = 'block';
         if (estaOnline()) {
-          document.getElementById('progreso-container').style.display = 'block';
           mostrarEstado('Subiendo ' + pendientes.length + ' fotos...', 'guardando');
           subirPendientes();
         } else {
@@ -529,35 +528,10 @@
             });
           });
           Promise.all(promises).then(function() {
-            mostrarEstado('Guardado! Suba cuando haya internet', 'activo');
-            document.getElementById('btn-subir').style.display = 'block';
+            guardando = false;
+            mostrarEstado('Guardado! Se subira cuando haya internet', 'activo');
           });
         }
-      });
-    }
-
-    function subirGuardadas() {
-      if (guardando) return;
-      dbGetAll('fotos').then(function(fotos) {
-        var guardadas = fotos.filter(function(f) { return f.estado === 'guardado'; });
-        if (guardadas.length === 0) return;
-        var promises = guardadas.map(function(f) {
-          f.estado = 'pendiente';
-          return openDB().then(function(d) {
-            return new Promise(function(resolve) {
-              var tx = d.transaction('fotos', 'readwrite');
-              tx.objectStore('fotos').put(f);
-              tx.oncomplete = resolve;
-            });
-          });
-        });
-        Promise.all(promises).then(function() {
-          guardando = true;
-          document.getElementById('btn-subir').style.display = 'none';
-          document.getElementById('progreso-container').style.display = 'block';
-          mostrarEstado('Subiendo ' + guardadas.length + ' fotos...', 'guardando');
-          subirPendientes();
-        });
       });
     }
 
@@ -579,7 +553,6 @@
       document.getElementById('seccion-nuevo').style.display = 'block';
       document.getElementById('seccion-captura').style.display = 'none';
       document.getElementById('btn-guardar').style.display = 'block';
-      document.getElementById('btn-subir').style.display = 'none';
       document.getElementById('progreso-container').style.display = 'none';
       document.getElementById('barra-progreso').style.width = '0%';
       document.getElementById('estado-captura').style.display = 'none';
@@ -612,10 +585,9 @@
     function verificarPendientesAlVolver() {
       if (guardando) return;
       dbGetAll('fotos').then(function(fotos) {
-        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
-        var guardadas = fotos.filter(function(f) { return f.estado === 'guardado'; });
+        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente' || f.estado === 'guardado'; });
         var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
-        var total = pendientes.length + guardadas.length + subidas.length;
+        var total = pendientes.length + subidas.length;
         if (total === 0) return;
 
         dbGetAll('config').then(function(configs) {
@@ -627,21 +599,18 @@
           document.getElementById('seccion-captura').style.display = 'block';
           document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
           document.getElementById('count-grande').textContent = total;
+          document.getElementById('btn-guardar').style.display = 'none';
           document.getElementById('progreso-container').style.display = 'block';
           document.getElementById('subida-info').style.color = '#FFB01A';
+          document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
 
-          if (guardadas.length > 0) {
-            document.getElementById('btn-guardar').style.display = 'none';
-            document.getElementById('btn-subir').style.display = 'block';
-            document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
-            mostrarEstado(guardadas.length + ' fotos guardadas. Presione Subir cuando haya internet', 'activo');
-          } else if (pendientes.length > 0 && estaOnline()) {
+          if (pendientes.length > 0 && estaOnline()) {
             guardando = true;
-            document.getElementById('btn-guardar').style.display = 'none';
-            document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
             mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
             verificarColaPendiente();
             subirPendientes();
+          } else if (pendientes.length > 0 && !estaOnline()) {
+            mostrarEstado(pendientes.length + ' fotos pendientes. Se subiran cuando haya internet', 'activo');
           }
         });
       });

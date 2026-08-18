@@ -82,11 +82,6 @@
     #modal-fotos .topbar h3 { color:#fff; font-size:1rem; }
     #modal-fotos .topbar button { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; }
     #modal-fotos .content { flex:1; overflow-y:auto; }
-    #debug-panel { position:fixed; bottom:0; left:0; right:0; max-height:40vh; background:rgba(0,0,0,0.95); color:#0f0; font-family:monospace; font-size:11px; padding:8px; overflow-y:auto; z-index:9999; border-top:2px solid #0f0; display:none; }
-    #debug-panel .log { margin-bottom:3px; word-break:break-all; }
-    #debug-panel .log.err { color:#f66; }
-    #debug-panel .log.ok { color:#0f8; }
-    #debug-toggle { position:fixed; bottom:8px; right:8px; background:#333; color:#0f0; border:1px solid #0f0; border-radius:6px; padding:6px 10px; font-size:11px; z-index:10000; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -168,34 +163,13 @@
     </div>
   </div>
 
-  <button id="debug-toggle" onclick="toggleDebug()">Debug</button>
-  <div id="debug-panel"></div>
-
   <script>
     var API_URL = 'https://script.google.com/macros/s/AKfycbz4qb6U_zbKBK1a45i4FgyLC7RbfXmr4j9Wuvmlfzqtsbc2oh5gH-1eSDbreftQmnI3/exec';
 
     function apiGet(params) {
       var qs = '';
       for (var k in params) { qs += (qs ? '&' : '?') + k + '=' + encodeURIComponent(params[k]); }
-      var url = API_URL + qs;
-      debugLog('→ GET ' + params.action + ' (' + url.length + ' chars)');
-      return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
-        debugLog('← ' + params.action + ': ' + JSON.stringify(data).substring(0, 200), 'ok');
-        return data;
-      }).catch(function(e) { debugLog('ERROR: ' + e.message, 'err'); return null; });
-    }
-
-    function apiPost(data) {
-      debugLog('→ POST guardarFotos (' + JSON.stringify(data).length + ' chars body)');
-      return fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(data)
-      }).then(function() {
-        debugLog('← POST enviado (no-cors, respuesta no visible)', 'ok');
-        return { success: true };
-      }).catch(function(e) { debugLog('ERROR POST: ' + e.message, 'err'); return null; });
+      return fetch(API_URL + qs).then(function(r) { return r.json(); }).catch(function(e) { return null; });
     }
 
     var fotosCapturadas = [];
@@ -346,27 +320,35 @@
 
       document.body.appendChild(form);
 
-      debugLog('Enviando ' + total + ' fotos via formulario (' + inputData.value.length + ' chars)...');
-
       iframe.onload = function() {
         document.getElementById('barra-progreso').style.width = '100%';
-        debugLog('Formulario enviado, verificando en 3s...', 'ok');
         setTimeout(function() {
           apiGet({ action: 'listar' }).then(function(r) {
             if (r && r.success) {
               var inm = r.inmuebles.find(function(i) { return i.id === inmuebleActualId; });
               if (inm && inm.fotos > 0) {
                 mostrarEstado('Guardado! ' + inm.fotos + ' fotos en Drive', 'exito');
-                debugLog('Exito! ' + inm.fotos + ' fotos guardadas', 'ok');
-                setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
+                setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
               } else {
-                mostrarEstado('Error: fotos no aparecen en Drive', 'error');
-                debugLog('Fotos no encontradas en Drive', 'err');
-                document.getElementById('btn-guardar').disabled = false;
+                mostrarEstado('Guardado! Verificando...', 'guardando');
+                setTimeout(function() {
+                  apiGet({ action: 'listar' }).then(function(r2) {
+                    if (r2 && r2.success) {
+                      var inm2 = r2.inmuebles.find(function(i) { return i.id === inmuebleActualId; });
+                      if (inm2 && inm2.fotos > 0) {
+                        mostrarEstado('Guardado! ' + inm2.fotos + ' fotos', 'exito');
+                        setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
+                      } else {
+                        mostrarEstado('Error al guardar', 'error');
+                        document.getElementById('btn-guardar').disabled = false;
+                      }
+                    }
+                  });
+                }, 3000);
               }
             }
           });
-        }, 3000);
+        }, 2000);
       };
 
       form.submit();
@@ -433,21 +415,6 @@
     }
 
     window.onload = function() { cargarInmuebles(); };
-
-    function debugLog(msg, type) {
-      var panel = document.getElementById('debug-panel');
-      var div = document.createElement('div');
-      div.className = 'log ' + (type || '');
-      div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
-      panel.appendChild(div);
-      panel.scrollTop = panel.scrollHeight;
-      panel.style.display = 'block';
-    }
-
-    function toggleDebug() {
-      var p = document.getElementById('debug-panel');
-      p.style.display = p.style.display === 'none' ? 'block' : 'none';
-    }
   </script>
 </body>
 </html>

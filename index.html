@@ -278,21 +278,33 @@
       mostrarEstado('Creando inmueble...', 'guardando');
       document.getElementById('btn-iniciar').disabled = true;
 
-      apiGet({ action: 'crear', nombre: nombre }).then(function(r) {
+      if (estaOnline()) {
+        apiGet({ action: 'crear', nombre: nombre }).then(function(r) {
+          document.getElementById('btn-iniciar').disabled = false;
+          if (r && r.success) {
+            inmuebleActualId = r.id;
+            dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: nombre });
+            abrirCaptura(nombre);
+          } else {
+            mostrarEstado('Error al crear: ' + (r ? r.error : 'sin conexion'), 'error');
+          }
+        });
+      } else {
+        var tempId = 'local_' + Date.now();
+        inmuebleActualId = tempId;
+        dbPut('config', { key: 'inmuebleActual', id: tempId, nombre: nombre, offline: true });
         document.getElementById('btn-iniciar').disabled = false;
-        if (r && r.success) {
-          inmuebleActualId = r.id;
-          document.getElementById('seccion-nuevo').style.display = 'none';
-          document.getElementById('seccion-captura').style.display = 'block';
-          document.getElementById('inmueble-actual').textContent = nombre;
-          actualizarUI();
-          mostrarEstado('Toca "Tomar Fotos" para comenzar', 'activo');
-          actualizarContador();
-          verificarColaPendiente();
-        } else {
-          mostrarEstado('Error al crear: ' + (r ? r.error : 'sin conexion'), 'error');
-        }
-      });
+        abrirCaptura(nombre);
+        mostrarEstado('Sin internet. Fotos se guardan localmente', 'activo');
+      }
+    }
+
+    function abrirCaptura(nombre) {
+      document.getElementById('seccion-nuevo').style.display = 'none';
+      document.getElementById('seccion-captura').style.display = 'block';
+      document.getElementById('inmueble-actual').textContent = nombre;
+      actualizarContador();
+      verificarColaPendiente();
     }
 
     function abrirCamara() {
@@ -408,41 +420,76 @@
           return;
         }
 
-        var lote = pendientes.slice(0, LOTE);
-        subiendo++;
+        dbGetAll('config').then(function(configs) {
+          var inmConfig = configs.find(function(c) { return c.key === 'inmuebleActual'; });
 
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'upload-' + Date.now();
-        document.body.appendChild(iframe);
+          function continuarSubida(carpetaId) {
+            var lote = pendientes.slice(0, LOTE);
+            subiendo++;
 
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = API_URL;
-        form.target = iframe.name;
-        form.enctype = 'application/x-www-form-urlencoded';
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.name = 'upload-' + Date.now();
+            document.body.appendChild(iframe);
 
-        var inputData = document.createElement('input');
-        inputData.type = 'hidden';
-        inputData.name = 'data';
-        inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote.map(function(f) { return { base64: f.base64, nombre: f.nombre }; }) });
-        form.appendChild(inputData);
-        document.body.appendChild(form);
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = API_URL;
+            form.target = iframe.name;
+            form.enctype = 'application/x-www-form-urlencoded';
 
-        iframe.onload = function() {
-          subiendo--;
-          var promises = lote.map(function(f) {
-            return dbDelete('fotos', f.id);
-          });
-          Promise.all(promises).then(function() {
-            actualizarContador();
-            form.remove();
-            iframe.remove();
-            subirPendientes();
-          });
-        };
+            var inputData = document.createElement('input');
+            inputData.type = 'hidden';
+            inputData.name = 'data';
+            inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: carpetaId, fotos: lote.map(function(f) { return { base64: f.base64, nombre: f.nombre }; }) });
+            form.appendChild(inputData);
+            document.body.appendChild(form);
 
-        form.submit();
+            iframe.onload = function() {
+              subiendo--;
+              var promises = lote.map(function(f) {
+                return dbDelete('fotos', f.id);
+              });
+              Promise.all(promises).then(function() {
+                actualizarContador();
+                form.remove();
+                iframe.remove();
+                subirPendientes();
+              });
+            };
+
+            form.submit();
+          }
+
+          if (inmConfig && inmConfig.offline && inmConfig.id && inmConfig.id.indexOf('local_') === 0) {
+            mostrarEstado('Sincronizando inmueble...', 'guardando');
+            apiGet({ action: 'crear', nombre: inmConfig.nombre }).then(function(r) {
+              if (r && r.success) {
+                var promises = pendientes.map(function(f) {
+                  f.carpetaId = r.id;
+                  return openDB().then(function(d) {
+                    return new Promise(function(resolve) {
+                      var tx = d.transaction('fotos', 'readwrite');
+                      tx.objectStore('fotos').put(f);
+                      tx.oncomplete = resolve;
+                    });
+                  });
+                });
+                Promise.all(promises).then(function() {
+                  inmuebleActualId = r.id;
+                  dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: inmConfig.nombre, offline: false });
+                  mostrarEstado('Subiendo fotos...', 'guardando');
+                  continuarSubida(r.id);
+                });
+              } else {
+                mostrarEstado('Error al sincronizar', 'error');
+                subiendo--;
+              }
+            });
+          } else {
+            continuarSubida(inmuebleActualId);
+          }
+        });
       });
     }
 

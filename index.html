@@ -169,7 +169,12 @@
     function apiGet(params) {
       var qs = '';
       for (var k in params) { qs += (qs ? '&' : '?') + k + '=' + encodeURIComponent(params[k]); }
-      return fetch(API_URL + qs).then(function(r) { return r.json(); }).catch(function(e) { console.error(e); return null; });
+      var url = API_URL + qs;
+      console.log('API GET:', params.action, 'URL length:', url.length);
+      return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        console.log('API response:', data);
+        return data;
+      }).catch(function(e) { console.error('API error:', e); return null; });
     }
 
     var fotosCapturadas = [];
@@ -205,7 +210,7 @@
       document.getElementById('camara-overlay').classList.add('activo');
       actualizarCamStrip();
       navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
       }).then(function(stream) { streamCamara = stream; document.getElementById('camara-video').srcObject = stream; })
       .catch(function() { cerrarCamara(); alert('No se pudo acceder a la camara.'); });
     }
@@ -225,7 +230,14 @@
       var ctx = canvas.getContext('2d');
       if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0); ctx.filter = 'none';
-      var base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      var resizeCanvas = document.createElement('canvas');
+      var maxW = 800;
+      var scale = maxW / canvas.width;
+      resizeCanvas.width = maxW;
+      resizeCanvas.height = canvas.height * scale;
+      var rctx = resizeCanvas.getContext('2d');
+      rctx.drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.6).split(',')[1];
       fotosCapturadas.push({ base64: base64, nombre: 'foto_' + (fotosCapturadas.length + 1) + '_' + Date.now() + '.jpg' });
       var vc = document.getElementById('camara-video-container');
       vc.classList.add('flash-anim'); setTimeout(function() { vc.classList.remove('flash-anim'); }, 150);
@@ -293,7 +305,7 @@
       document.getElementById('btn-guardar').disabled = true;
       document.getElementById('progreso-container').style.display = 'block';
       var total = fotosCapturadas.length;
-      var LOTE = 2;
+      var LOTE = 1;
       var lotes = [];
       for (var i = 0; i < total; i += LOTE) { lotes.push(fotosCapturadas.slice(i, i + LOTE)); }
       var enviados = 0;

@@ -7,6 +7,7 @@ var CARPETA_RAIZ = 'Inventario Inmobiliario';
 
 function doGet(e) {
   var p = e.parameter;
+  Logger.log('doGet action: ' + p.action);
 
   if (p.action === 'crear') {
     return ContentService.createTextOutput(JSON.stringify(crearInmueble(p.nombre)))
@@ -15,6 +16,7 @@ function doGet(e) {
 
   if (p.action === 'guardarFotos') {
     var fotos = JSON.parse(p.fotos);
+    Logger.log('guardarFotos: ' + fotos.length + ' fotos para carpeta ' + p.carpetaId);
     return ContentService.createTextOutput(JSON.stringify(guardarFotos(p.carpetaId, fotos)))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -31,6 +33,11 @@ function doGet(e) {
 
   if (p.action === 'eliminar') {
     return ContentService.createTextOutput(JSON.stringify(eliminarInmueble(p.carpetaId)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (p.action === 'test') {
+    return ContentService.createTextOutput(JSON.stringify({ok: true, timestamp: new Date().getTime()}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 

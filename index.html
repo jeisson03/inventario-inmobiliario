@@ -460,7 +460,6 @@
           function continuarSubida(carpetaId) {
             var lote = pendientes.slice(0, LOTE);
             subiendo++;
-            subiendoLock = false;
 
             var iframe = document.createElement('iframe');
             iframe.style.display = 'none';
@@ -486,6 +485,7 @@
                 return dbDelete('fotos', f.id);
               });
               Promise.all(promises).then(function() {
+                subiendoLock = false;
                 actualizarContador();
                 form.remove();
                 iframe.remove();

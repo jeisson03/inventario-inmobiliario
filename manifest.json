@@ -1,0 +1,22 @@
+{
+  "name": "Andres Raiz Inventario",
+  "short_name": "Inventario",
+  "description": "App de inventario fotografico para asesores inmobiliarios",
+  "start_url": "/inventario-inmobiliario/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111111",
+  "theme_color": "#FF5500",
+  "icons": [
+    {
+      "src": "https://andresraiz.com/wp-content/uploads/2021/10/logo-hd-30.09.2021-2.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://andresraiz.com/wp-content/uploads/2021/10/logo-hd-30.09.2021-2.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

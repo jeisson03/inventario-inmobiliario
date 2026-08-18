@@ -510,13 +510,13 @@
           return;
         }
         guardando = true;
-        document.getElementById('btn-guardar').disabled = true;
+        document.getElementById('btn-guardar').style.display = 'none';
         document.getElementById('progreso-container').style.display = 'block';
         if (estaOnline()) {
           mostrarEstado('Subiendo ' + pendientes.length + ' fotos...', 'guardando');
           subirPendientes();
         } else {
-          mostrarEstado('Sin internet. Fotos guardadas localmente, se subiran cuando haya señal', 'activo');
+          mostrarEstado('Sin internet. Se subiran cuando haya señal', 'activo');
         }
       });
     }
@@ -538,7 +538,7 @@
       document.getElementById('nombre-inmueble').value = '';
       document.getElementById('seccion-nuevo').style.display = 'block';
       document.getElementById('seccion-captura').style.display = 'none';
-      document.getElementById('btn-guardar').disabled = false;
+      document.getElementById('btn-guardar').style.display = 'block';
       document.getElementById('progreso-container').style.display = 'none';
       document.getElementById('barra-progreso').style.width = '0%';
       document.getElementById('estado-captura').style.display = 'none';
@@ -581,10 +581,13 @@
               document.getElementById('seccion-captura').style.display = 'block';
               document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
               document.getElementById('count-grande').textContent = pendientes.length + subidas.length;
+              document.getElementById('btn-guardar').style.display = 'none';
+              document.getElementById('progreso-container').style.display = 'block';
               var el = document.getElementById('subida-info');
-              el.textContent = subidas.length + ' subidas, ' + pendientes.length + ' pendientes';
+              el.textContent = subidas.length + ' de ' + (pendientes.length + subidas.length) + ' fotos subidas';
               el.style.color = '#FFB01A';
-              mostrarEstado(pendientes.length + ' fotos pendientes. Subiendo...', 'guardando');
+              mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
+              guardando = true;
               verificarColaPendiente();
               if (estaOnline()) { subirPendientes(); }
             }

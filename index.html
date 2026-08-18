@@ -571,13 +571,22 @@
     function verificarPendientesAlVolver() {
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
-        if (pendientes.length > 0 && estaOnline()) {
+        var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
+        if (pendientes.length > 0) {
           dbGetAll('config').then(function(configs) {
             var inmConfig = configs.find(function(c) { return c.key === 'inmuebleActual'; });
             if (inmConfig) {
               inmuebleActualId = inmConfig.id;
-              mostrarEstado('Hay ' + pendientes.length + ' fotos pendientes. Subiendo...', 'guardando');
-              subirPendientes();
+              document.getElementById('seccion-nuevo').style.display = 'none';
+              document.getElementById('seccion-captura').style.display = 'block';
+              document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
+              document.getElementById('count-grande').textContent = pendientes.length + subidas.length;
+              var el = document.getElementById('subida-info');
+              el.textContent = subidas.length + ' subidas, ' + pendientes.length + ' pendientes';
+              el.style.color = '#FFB01A';
+              mostrarEstado(pendientes.length + ' fotos pendientes. Subiendo...', 'guardando');
+              verificarColaPendiente();
+              if (estaOnline()) { subirPendientes(); }
             }
           });
         }

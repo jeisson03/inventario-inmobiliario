@@ -41,7 +41,23 @@ function doGet(e) {
 function doPost(e) {
   try {
     Logger.log('doPost recibido');
-    var data = JSON.parse(e.postData.contents);
+    var raw = e.postData.contents;
+    Logger.log('doPost raw length: ' + raw.length);
+
+    var data;
+    if (e.postData.type === 'application/x-www-form-urlencoded') {
+      var params = raw.split('&');
+      for (var i = 0; i < params.length; i++) {
+        var pair = params[i].split('=');
+        if (pair[0] === 'data') {
+          data = JSON.parse(decodeURIComponent(pair.slice(1).join('=')));
+          break;
+        }
+      }
+    } else {
+      data = JSON.parse(raw);
+    }
+
     Logger.log('doPost action: ' + data.action);
 
     if (data.action === 'guardarFotos') {

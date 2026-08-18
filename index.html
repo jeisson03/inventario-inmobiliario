@@ -330,38 +330,53 @@
       var total = fotosCapturadas.length;
       var enviados = 0;
 
-      function enviar() {
-        if (enviados >= total) {
-          mostrarEstado('Guardado! ' + total + ' fotos', 'exito');
-          document.getElementById('barra-progreso').style.width = '100%';
-          debugLog('Todas las fotos enviadas', 'ok');
-          setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
-          return;
-        }
-        var foto = fotosCapturadas[enviados];
-        var bodyStr = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: [foto] });
-        debugLog('Foto ' + (enviados+1) + '/' + total + ': ' + bodyStr.length + ' chars');
-        document.getElementById('texto-progreso').textContent = 'Foto ' + (enviados+1) + ' de ' + total + '...';
-        document.getElementById('barra-progreso').style.width = Math.round((enviados / total) * 100) + '%';
-
-        fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: bodyStr
-        }).then(function(r) {
-          debugLog('HTTP ' + r.status, r.ok ? 'ok' : 'err');
-          return r.json();
-        }).then(function(data) {
-          debugLog('← ' + JSON.stringify(data).substring(0, 150), 'ok');
-          enviados++;
-          setTimeout(enviar, 300);
-        }).catch(function(e) {
-          debugLog('ERROR foto ' + (enviados+1) + ': ' + e.message, 'err');
-          enviados++;
-          setTimeout(enviar, 1000);
-        });
+      var iframe = document.getElementById('upload-frame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'upload-frame';
+        iframe.name = 'upload-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
       }
-      enviar();
+
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = API_URL;
+      form.target = 'upload-frame';
+      form.enctype = 'application/x-www-form-urlencoded';
+
+      var inputData = document.createElement('input');
+      inputData.type = 'hidden';
+      inputData.name = 'data';
+      inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosCapturadas });
+      form.appendChild(inputData);
+
+      document.body.appendChild(form);
+
+      debugLog('Enviando ' + total + ' fotos via formulario (' + inputData.value.length + ' chars)...');
+
+      iframe.onload = function() {
+        document.getElementById('barra-progreso').style.width = '100%';
+        debugLog('Formulario enviado, verificando en 3s...', 'ok');
+        setTimeout(function() {
+          apiGet({ action: 'listar' }).then(function(r) {
+            if (r && r.success) {
+              var inm = r.inmuebles.find(function(i) { return i.id === inmuebleActualId; });
+              if (inm && inm.fotos > 0) {
+                mostrarEstado('Guardado! ' + inm.fotos + ' fotos en Drive', 'exito');
+                debugLog('Exito! ' + inm.fotos + ' fotos guardadas', 'ok');
+                setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
+              } else {
+                mostrarEstado('Error: fotos no aparecen en Drive', 'error');
+                debugLog('Fotos no encontradas en Drive', 'err');
+                document.getElementById('btn-guardar').disabled = false;
+              }
+            }
+          });
+        }, 3000);
+      };
+
+      form.submit();
     }
 
     function cancelarSesion() {

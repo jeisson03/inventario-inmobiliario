@@ -510,7 +510,9 @@
       dbGetAll('fotos').then(function(fotos) {
         var guardadas = fotos.filter(function(f) { return f.estado === 'guardado'; });
         if (guardadas.length === 0) {
-          finalizarGuardado();
+          guardando = false;
+          mostrarEstado('Todas las fotos subidas!', 'exito');
+          setTimeout(function() { mostrarEstado(null); }, 3000);
           return;
         }
         var carpetaId = guardadas[0].carpetaId;
@@ -674,8 +676,10 @@
       if (guardando) return;
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
+        var guardadas = fotos.filter(function(f) { return f.estado === 'guardado'; });
         var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
-        var total = pendientes.length + subidas.length;
+        var totalPendientes = pendientes.length + guardadas.length;
+        var total = totalPendientes + subidas.length;
         if (total === 0) return;
 
         dbGetAll('config').then(function(configs) {
@@ -691,11 +695,15 @@
           document.getElementById('subida-info').style.color = '#FFB01A';
           document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
 
-          if (pendientes.length > 0 && estaOnline()) {
+          if (guardadas.length > 0 && estaOnline()) {
+            guardando = true;
+            mostrarEstado('Subiendo fotos guardadas...', 'guardando');
+            verificarColaPendiente();
+          } else if (pendientes.length > 0 && estaOnline()) {
             mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
             autoSubirPendientes();
-          } else if (pendientes.length > 0 && !estaOnline()) {
-            mostrarEstado(pendientes.length + ' fotos sin guardar. Presione Guardar', 'activo');
+          } else if (totalPendientes > 0 && !estaOnline()) {
+            mostrarEstado(totalPendientes + ' fotos pendientes. Se subiran cuando haya internet', 'activo');
           }
         });
       });

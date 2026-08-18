@@ -275,7 +275,6 @@
     function iniciarSesion() {
       var nombre = document.getElementById('nombre-inmueble').value.trim();
       if (!nombre) { alert('Ingresa un nombre'); return; }
-      mostrarEstado('Creando inmueble...', 'guardando');
       document.getElementById('btn-iniciar').disabled = true;
 
       if (estaOnline()) {
@@ -286,8 +285,11 @@
             dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: nombre });
             abrirCaptura(nombre);
           } else {
-            mostrarEstado('Error al crear: ' + (r ? r.error : 'sin conexion'), 'error');
+            alert('Error al crear inmueble. Intenta de nuevo.');
           }
+        }).catch(function() {
+          document.getElementById('btn-iniciar').disabled = false;
+          alert('Error de conexion. Intenta de nuevo.');
         });
       } else {
         var tempId = 'local_' + Date.now();
@@ -295,7 +297,7 @@
         dbPut('config', { key: 'inmuebleActual', id: tempId, nombre: nombre, offline: true });
         document.getElementById('btn-iniciar').disabled = false;
         abrirCaptura(nombre);
-        mostrarEstado('Sin internet. Fotos se guardan localmente', 'activo');
+        alert('Sin internet. Fotos se guardan localmente y se subiran cuando haya señal.');
       }
     }
 

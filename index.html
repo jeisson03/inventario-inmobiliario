@@ -252,13 +252,13 @@
       if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0); ctx.filter = 'none';
       var resizeCanvas = document.createElement('canvas');
-      var maxW = 800;
+      var maxW = 400;
       var scale = maxW / canvas.width;
       resizeCanvas.width = maxW;
       resizeCanvas.height = canvas.height * scale;
       var rctx = resizeCanvas.getContext('2d');
       rctx.drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
-      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.4).split(',')[1];
       fotosCapturadas.push({ base64: base64, nombre: 'foto_' + (fotosCapturadas.length + 1) + '_' + Date.now() + '.jpg' });
       var vc = document.getElementById('camara-video-container');
       vc.classList.add('flash-anim'); setTimeout(function() { vc.classList.remove('flash-anim'); }, 150);
@@ -325,18 +325,43 @@
       if (!confirm('Guardar ' + fotosCapturadas.length + ' fotos?')) return;
       document.getElementById('btn-guardar').disabled = true;
       document.getElementById('progreso-container').style.display = 'block';
-      document.getElementById('barra-progreso').style.width = '30%';
-      document.getElementById('texto-progreso').textContent = 'Enviando ' + fotosCapturadas.length + ' fotos...';
       mostrarEstado('Guardando fotos...', 'guardando');
 
-      apiPost({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosCapturadas }).then(function(r) {
-        document.getElementById('barra-progreso').style.width = '100%';
-        mostrarEstado('Guardado! ' + fotosCapturadas.length + ' fotos', 'exito');
-        setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
-      }).catch(function() {
-        mostrarEstado('Error al guardar', 'error');
-        document.getElementById('btn-guardar').disabled = false;
-      });
+      var total = fotosCapturadas.length;
+      var LOTE = 5;
+      var lotes = [];
+      for (var i = 0; i < total; i += LOTE) { lotes.push(fotosCapturadas.slice(i, i + LOTE)); }
+      var enviados = 0;
+
+      function enviar() {
+        if (enviados >= lotes.length) {
+          mostrarEstado('Guardado! ' + total + ' fotos', 'exito');
+          document.getElementById('barra-progreso').style.width = '100%';
+          debugLog('Todas las fotos enviadas', 'ok');
+          setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
+          return;
+        }
+        var lote = lotes[enviados];
+        var bodySize = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote }).length;
+        debugLog('Lote ' + (enviados+1) + '/' + lotes.length + ': ' + lote.length + ' fotos, ' + bodySize + ' chars');
+        document.getElementById('texto-progreso').textContent = 'Lote ' + (enviados+1) + ' de ' + lotes.length + '...';
+        document.getElementById('barra-progreso').style.width = Math.round((enviados / lotes.length) * 100) + '%';
+
+        fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote })
+        }).then(function() {
+          enviados++;
+          debugLog('Lote ' + enviados + ' enviado OK', 'ok');
+          setTimeout(enviar, 500);
+        }).catch(function(e) {
+          debugLog('Error lote ' + enviados + ': ' + e.message, 'err');
+          setTimeout(enviar, 2000);
+        });
+      }
+      enviar();
     }
 
     function cancelarSesion() {

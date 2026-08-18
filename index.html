@@ -592,7 +592,7 @@
     }
 
     function guardarInmueble() {
-      if (guardando) return;
+      if (guardando || autoSubiendo) return;
       autoSubiendo = false;
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
@@ -697,9 +697,11 @@
 
           if (guardadas.length > 0 && estaOnline()) {
             guardando = true;
+            document.getElementById('btn-guardar').style.display = 'none';
             mostrarEstado('Subiendo fotos guardadas...', 'guardando');
             verificarColaPendiente();
           } else if (pendientes.length > 0 && estaOnline()) {
+            document.getElementById('btn-guardar').style.display = 'none';
             mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
             autoSubirPendientes();
           } else if (totalPendientes > 0 && !estaOnline()) {

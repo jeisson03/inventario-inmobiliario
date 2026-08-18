@@ -328,37 +328,37 @@
       mostrarEstado('Guardando fotos...', 'guardando');
 
       var total = fotosCapturadas.length;
-      var LOTE = 5;
-      var lotes = [];
-      for (var i = 0; i < total; i += LOTE) { lotes.push(fotosCapturadas.slice(i, i + LOTE)); }
       var enviados = 0;
 
       function enviar() {
-        if (enviados >= lotes.length) {
+        if (enviados >= total) {
           mostrarEstado('Guardado! ' + total + ' fotos', 'exito');
           document.getElementById('barra-progreso').style.width = '100%';
           debugLog('Todas las fotos enviadas', 'ok');
           setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
           return;
         }
-        var lote = lotes[enviados];
-        var bodySize = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote }).length;
-        debugLog('Lote ' + (enviados+1) + '/' + lotes.length + ': ' + lote.length + ' fotos, ' + bodySize + ' chars');
-        document.getElementById('texto-progreso').textContent = 'Lote ' + (enviados+1) + ' de ' + lotes.length + '...';
-        document.getElementById('barra-progreso').style.width = Math.round((enviados / lotes.length) * 100) + '%';
+        var foto = fotosCapturadas[enviados];
+        var bodyStr = JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: [foto] });
+        debugLog('Foto ' + (enviados+1) + '/' + total + ': ' + bodyStr.length + ' chars');
+        document.getElementById('texto-progreso').textContent = 'Foto ' + (enviados+1) + ' de ' + total + '...';
+        document.getElementById('barra-progreso').style.width = Math.round((enviados / total) * 100) + '%';
 
         fetch(API_URL, {
           method: 'POST',
-          mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote })
-        }).then(function() {
+          body: bodyStr
+        }).then(function(r) {
+          debugLog('HTTP ' + r.status, r.ok ? 'ok' : 'err');
+          return r.json();
+        }).then(function(data) {
+          debugLog('← ' + JSON.stringify(data).substring(0, 150), 'ok');
           enviados++;
-          debugLog('Lote ' + enviados + ' enviado OK', 'ok');
-          setTimeout(enviar, 500);
+          setTimeout(enviar, 300);
         }).catch(function(e) {
-          debugLog('Error lote ' + enviados + ': ' + e.message, 'err');
-          setTimeout(enviar, 2000);
+          debugLog('ERROR foto ' + (enviados+1) + ': ' + e.message, 'err');
+          enviados++;
+          setTimeout(enviar, 1000);
         });
       }
       enviar();

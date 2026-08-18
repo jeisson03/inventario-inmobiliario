@@ -503,6 +503,7 @@
     }
 
     function guardarInmueble() {
+      if (guardando) return;
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
         if (pendientes.length === 0) {

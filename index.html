@@ -511,19 +511,22 @@
           return;
         }
         guardando = true;
+        dbPut('config', { key: 'guardandoEstado', value: true });
         document.getElementById('btn-guardar').style.display = 'none';
         document.getElementById('progreso-container').style.display = 'block';
         if (estaOnline()) {
           mostrarEstado('Subiendo ' + pendientes.length + ' fotos...', 'guardando');
           subirPendientes();
         } else {
-          mostrarEstado('Sin internet. Se subiran cuando haya señal', 'activo');
+          mostrarEstado('Sin internet. Se subiran cuando haya senal', 'activo');
+          verificarColaPendiente();
         }
       });
     }
 
     function finalizarGuardado() {
       guardando = false;
+      dbPut('config', { key: 'guardandoEstado', value: false });
       document.getElementById('barra-progreso').style.width = '100%';
       mostrarEstado('Guardado! Todas las fotos en Drive', 'exito');
       setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
@@ -570,13 +573,17 @@
     }
 
     function verificarPendientesAlVolver() {
+      if (guardando) return;
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
         var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
         if (pendientes.length > 0) {
           dbGetAll('config').then(function(configs) {
             var inmConfig = configs.find(function(c) { return c.key === 'inmuebleActual'; });
+            var guardandoConfig = configs.find(function(c) { return c.key === 'guardandoEstado'; });
             if (inmConfig) {
+              guardando = true;
+              dbPut('config', { key: 'guardandoEstado', value: true });
               inmuebleActualId = inmConfig.id;
               document.getElementById('seccion-nuevo').style.display = 'none';
               document.getElementById('seccion-captura').style.display = 'block';
@@ -588,7 +595,6 @@
               el.textContent = subidas.length + ' de ' + (pendientes.length + subidas.length) + ' fotos subidas';
               el.style.color = '#FFB01A';
               mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
-              guardando = true;
               verificarColaPendiente();
               if (estaOnline()) { subirPendientes(); }
             }

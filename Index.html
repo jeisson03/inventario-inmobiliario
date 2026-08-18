@@ -67,11 +67,7 @@
       font-size: 1rem;
     }
 
-    .campo input:focus {
-      outline: none;
-      border-color: #00d9ff;
-    }
-
+    .campo input:focus { outline: none; border-color: #00d9ff; }
     .campo input::placeholder { color: #5a6580; }
 
     .boton {
@@ -90,126 +86,46 @@
 
     .boton:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .boton-primario {
-      background: linear-gradient(90deg, #00d9ff, #00ff88);
-      color: #0f0c29;
-    }
+    .boton-primario { background: linear-gradient(90deg, #00d9ff, #00ff88); color: #0f0c29; }
+    .boton-guardar { background: linear-gradient(90deg, #00ff88, #00d9ff); color: #0f0c29; margin-top: 10px; }
+    .boton-cancelar { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); margin-top: 8px; }
+    .boton-camara { background: linear-gradient(135deg, #ff6b6b, #ff8e53); color: #fff; padding: 18px; font-size: 1.1rem; }
+    .boton-galeria { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; margin-top: 8px; }
+    .boton-secundario { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); margin-top: 8px; }
 
-    .boton-guardar {
-      background: linear-gradient(90deg, #00ff88, #00d9ff);
-      color: #0f0c29;
-      margin-top: 10px;
-    }
-
-    .boton-cancelar {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.2);
-      margin-top: 8px;
-    }
-
-    .boton-camara {
-      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-      color: #fff;
-      padding: 18px;
-      font-size: 1.1rem;
-    }
-
-    .boton-galeria {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      margin-top: 8px;
-    }
-
-    .boton-secundario {
-      background: rgba(255,255,255,0.08);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.15);
-      margin-top: 8px;
-    }
-
-    .fotos-container {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 12px;
-    }
+    .fotos-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 
     .foto-preview {
-      position: relative;
-      aspect-ratio: 1;
-      border-radius: 10px;
-      overflow: hidden;
-      background: rgba(0,0,0,0.3);
+      position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.3);
     }
 
-    .foto-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    .foto-preview img { width: 100%; height: 100%; object-fit: cover; }
 
     .foto-preview .eliminar {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: rgba(255,0,0,0.85);
-      border: none;
-      border-radius: 50%;
-      width: 22px;
-      height: 22px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: absolute; top: 4px; right: 4px; background: rgba(255,0,0,0.85);
+      border: none; border-radius: 50%; width: 22px; height: 22px; color: #fff;
+      cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
     }
 
     .foto-preview .numero {
-      position: absolute;
-      bottom: 4px;
-      left: 4px;
-      background: rgba(0,0,0,0.7);
-      border-radius: 5px;
-      padding: 1px 6px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,0.7);
+      border-radius: 5px; padding: 1px 6px; font-size: 0.7rem; font-weight: 600;
     }
 
     .inmueble-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 10px;
-      margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-bottom: 8px;
     }
 
     .inmueble-nombre { font-weight: 600; font-size: 0.9rem; }
     .inmueble-fotos { color: #8892b0; font-size: 0.75rem; margin-top: 2px; }
-
     .inmueble-acciones { display: flex; gap: 6px; }
 
-    .btn-sm {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-
+    .btn-sm { padding: 6px 10px; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
     .btn-ver { background: rgba(0,217,255,0.2); color: #00d9ff; }
-    .btn-descargar { background: rgba(0,255,136,0.2); color: #00ff88; }
 
     .estado {
-      text-align: center;
-      padding: 12px;
-      border-radius: 10px;
-      margin-top: 12px;
-      font-weight: 500;
-      font-size: 0.9rem;
+      text-align: center; padding: 12px; border-radius: 10px; margin-top: 12px; font-weight: 500; font-size: 0.9rem;
     }
 
     .estado-activo { background: rgba(0,217,255,0.15); color: #00d9ff; }
@@ -218,155 +134,92 @@
     .estado-error { background: rgba(255,107,107,0.15); color: #ff6b6b; }
 
     .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
+      display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-right: 6px;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    #input-foto, #input-galeria { display: none; }
-
+    #input-galeria { display: none; }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
-    @media (max-width: 400px) {
-      .fotos-container { grid-template-columns: repeat(2, 1fr); }
-    }
+    @media (max-width: 400px) { .fotos-container { grid-template-columns: repeat(2, 1fr); } }
 
-    /* ===== CAMARA EN VIVO ===== */
+    /* CAMARA */
     #camara-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #000;
-      z-index: 2000;
-      flex-direction: column;
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: #000; z-index: 2000; flex-direction: column;
     }
-
     #camara-overlay.activo { display: flex; }
 
     #camara-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 15px;
-      background: rgba(0,0,0,0.85);
-      z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 15px; background: rgba(0,0,0,0.85); z-index: 10;
     }
 
     .camara-nombre { font-weight: 600; font-size: 0.85rem; color: #00d9ff; }
 
     .camara-contador {
-      background: rgba(255,107,107,0.85);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-weight: 700;
-      font-size: 0.85rem;
+      background: rgba(255,107,107,0.85); padding: 4px 12px; border-radius: 20px;
+      font-weight: 700; font-size: 0.85rem;
     }
 
-    #camara-video-container {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      background: #000;
-    }
-
-    #camara-video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
+    #camara-video-container { flex: 1; position: relative; overflow: hidden; background: #000; }
+    #camara-video { width: 100%; height: 100%; object-fit: cover; }
     #camara-canvas { display: none; }
 
     #camara-footer {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 18px;
-      background: rgba(0,0,0,0.85);
-      gap: 28px;
+      display: flex; justify-content: center; align-items: center;
+      padding: 18px; background: rgba(0,0,0,0.85); gap: 28px;
     }
 
     #btn-disparar {
-      width: 75px;
-      height: 75px;
-      border-radius: 50%;
-      border: 5px solid #fff;
-      background: rgba(255,255,255,0.25);
-      cursor: pointer;
-      position: relative;
-      transition: transform 0.1s;
+      width: 75px; height: 75px; border-radius: 50%; border: 5px solid #fff;
+      background: rgba(255,255,255,0.25); cursor: pointer; position: relative; transition: transform 0.1s;
     }
 
     #btn-disparar::after {
-      content: '';
-      position: absolute;
-      top: 7px; left: 7px; right: 7px; bottom: 7px;
-      border-radius: 50%;
-      background: #fff;
+      content: ''; position: absolute; top: 7px; left: 7px; right: 7px; bottom: 7px;
+      border-radius: 50%; background: #fff;
     }
 
     #btn-disparar:active { transform: scale(0.88); }
     #btn-disparar:active::after { background: #ff6b6b; }
 
     .cam-btn {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.4);
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.1); color: #fff; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
     }
 
     .cam-btn.flash-on { background: rgba(255,193,7,0.5); border-color: #ffc107; }
 
     .flash-anim { animation: flashFx 0.15s ease; }
+    @keyframes flashFx { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
 
-    @keyframes flashFx {
-      0% { opacity: 1; }
-      50% { opacity: 0.2; }
-      100% { opacity: 1; }
-    }
-
-    .preview-strip {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding: 8px 0;
-    }
-
+    .preview-strip { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
     .preview-strip::-webkit-scrollbar { height: 3px; }
 
     .strip-thumb {
-      width: 52px;
-      height: 52px;
-      border-radius: 6px;
-      object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.15);
-      flex-shrink: 0;
+      width: 52px; height: 52px; border-radius: 6px; object-fit: cover;
+      border: 2px solid rgba(255,255,255,0.15); flex-shrink: 0;
     }
 
-    .strip-thumb.ultima {
-      border-color: #00ff88;
-      box-shadow: 0 0 8px rgba(0,255,136,0.4);
-    }
+    .strip-thumb.ultima { border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.4); }
+    .preview-strip-container { margin-top: 10px; }
 
-    .preview-strip-container {
-      margin-top: 10px;
+    /* Progreso de guardado */
+    .barra-progreso {
+      width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;
+      margin-top: 8px; overflow: hidden;
     }
+    .barra-progreso-fill {
+      height: 100%; background: linear-gradient(90deg, #00d9ff, #00ff88);
+      border-radius: 3px; transition: width 0.3s ease; width: 0%;
+    }
+    .texto-progreso { color: #8892b0; font-size: 0.8rem; margin-top: 4px; text-align: center; }
   </style>
 </head>
 <body>
@@ -408,6 +261,11 @@
         <span id="contador-fotos">0</span> fotos capturadas
       </div>
 
+      <div id="progreso-container" style="display:none;">
+        <div class="barra-progreso"><div class="barra-progreso-fill" id="barra-progreso"></div></div>
+        <div class="texto-progreso" id="texto-progreso"></div>
+      </div>
+
       <button class="boton boton-guardar" id="btn-guardar" onclick="guardarInmueble()">Guardar Inmueble</button>
       <button class="boton boton-cancelar" onclick="cancelarSesion()">Cancelar</button>
     </div>
@@ -431,7 +289,7 @@
       <canvas id="camara-canvas"></canvas>
     </div>
     <div id="camara-footer">
-      <button class="cam-btn" id="btn-cerrar-camara" onclick="cerrarCamara()">X</button>
+      <button class="cam-btn" onclick="cerrarCamara()">X</button>
       <button id="btn-disparar" onclick="tomarFoto()"></button>
       <button class="cam-btn" id="btn-flash" onclick="toggleFlash()">Flash</button>
     </div>
@@ -448,45 +306,23 @@
     </div>
   </div>
 
-  <!-- MODAL CONFIGURAR URL -->
-  <div id="modal-config" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:3000;padding:20px;">
-    <div style="max-width:450px;margin:80px auto;background:#1e1e2e;border-radius:16px;padding:24px;border:1px solid rgba(255,255,255,0.1);">
-      <h3 style="margin-bottom:12px;">Configurar URL del Servidor</h3>
-      <p style="color:#8892b0;font-size:0.85rem;margin-bottom:12px;">Pega la URL de tu Google Apps Script (la que termina en /exec)</p>
-      <div class="campo">
-        <input type="text" id="input-url-api" placeholder="https://script.google.com/macros/s/.../exec">
-      </div>
-      <button class="boton boton-primario" onclick="guardarURL()" style="margin-top:8px;">Guardar</button>
-      <button class="boton boton-cancelar" onclick="document.getElementById('modal-config').style.display='none'">Cancelar</button>
-    </div>
-  </div>
-
   <script>
     // ============================================
-    // CONFIGURACION
+    // CONFIGURACION - URL de tu Google Apps Script
     // ============================================
-    var API_URL = localStorage.getItem('api_url') || '';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbwGtpCXmW7uJYMrmqn_gVIJd0OBnzOsNwF45DiDuAL1DLfJQGzikokl9c9-KqlcmGu7/exec';
 
-    // Si no hay URL configurada, mostrar modal
-    if (!API_URL) {
-      document.getElementById('modal-config').style.display = 'block';
-    }
-
-    function guardarURL() {
-      var url = document.getElementById('input-url-api').value.trim();
-      if (!url) { alert('Ingresa la URL'); return; }
-      API_URL = url;
-      localStorage.setItem('api_url', url);
-      document.getElementById('modal-config').style.display = 'none';
-      cargarInmuebles();
-    }
-
+    // ============================================
+    // FUNCIONES API
+    // ============================================
     function apiGet(action, params) {
-      var qs = 'action=' + action;
+      var qs = '?action=' + action;
       if (params) {
         for (var k in params) { qs += '&' + k + '=' + encodeURIComponent(params[k]); }
       }
-      return fetch(API_URL + '?' + qs).then(function(r) { return r.json(); });
+      return fetch(API_URL + qs)
+        .then(function(r) { return r.json(); })
+        .catch(function(err) { console.error('API GET error:', err); return null; });
     }
 
     function apiPost(body) {
@@ -498,9 +334,12 @@
       }).then(function() {
         return new Promise(function(resolve) {
           setTimeout(function() {
-            fetch(API_URL + '?action=listar').then(function(r) { return r.json(); }).then(resolve);
-          }, 3000);
+            apiGet('listar').then(function(r) { resolve(r); });
+          }, 2000);
         });
+      }).catch(function(err) {
+        console.error('API POST error:', err);
+        return null;
       });
     }
 
@@ -532,12 +371,11 @@
             actualizarContador();
             mostrarEstado('Listo para capturar fotos', 'activo');
           } else {
-            mostrarEstado('Error: ' + (resultado ? resultado.error : 'Sin respuesta'), 'error');
+            mostrarEstado('Error al crear inmueble', 'error');
           }
         })
-        .catch(function(err) {
+        .catch(function() {
           mostrarEstado('Error de conexion', 'error');
-          console.error(err);
         });
     }
 
@@ -553,37 +391,27 @@
       document.getElementById('camara-contador').textContent = fotosCapturadas.length + ' fotos';
       overlay.classList.add('activo');
 
-      var constraints = {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false
-      };
-
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(function(stream) {
-          streamCamara = stream;
-          video.srcObject = stream;
-        })
-        .catch(function(err) {
-          console.error('Error camara:', err);
-          cerrarCamara();
-          alert('No se pudo acceder a la camara. Verifica los permisos.');
-        });
+      }).then(function(stream) {
+        streamCamara = stream;
+        video.srcObject = stream;
+      }).catch(function(err) {
+        console.error('Error camara:', err);
+        cerrarCamara();
+        alert('No se pudo acceder a la camara. Verifica los permisos.');
+      });
     }
 
     function cerrarCamara() {
-      var overlay = document.getElementById('camara-overlay');
       var video = document.getElementById('camara-video');
-
       if (streamCamara) {
         streamCamara.getTracks().forEach(function(t) { t.stop(); });
         streamCamara = null;
       }
       video.srcObject = null;
-      overlay.classList.remove('activo');
+      document.getElementById('camara-overlay').classList.remove('activo');
     }
 
     function tomarFoto() {
@@ -596,7 +424,7 @@
       canvas.height = video.videoHeight;
       var ctx = canvas.getContext('2d');
 
-      if (flashOn) { ctx.filter = 'brightness(1.3)'; }
+      if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0);
       ctx.filter = 'none';
 
@@ -618,8 +446,7 @@
 
     function toggleFlash() {
       flashOn = !flashOn;
-      var btn = document.getElementById('btn-flash');
-      btn.classList.toggle('flash-on', flashOn);
+      document.getElementById('btn-flash').classList.toggle('flash-on', flashOn);
     }
 
     // ============================================
@@ -632,7 +459,9 @@
       mostrarEstado('Procesando ' + archivos.length + ' fotos...', 'guardando');
 
       var procesadas = 0;
-      for (var i = 0; i < archivos.length; i++) {
+      var total = archivos.length;
+
+      for (var i = 0; i < total; i++) {
         (function(archivo) {
           var reader = new FileReader();
           reader.onload = function(e) {
@@ -640,7 +469,7 @@
             var nombreFoto = 'foto_' + (fotosCapturadas.length + 1) + '_' + Date.now() + '.jpg';
             fotosCapturadas.push({ base64: base64, nombre: nombreFoto });
             procesadas++;
-            if (procesadas === archivos.length) {
+            if (procesadas === total) {
               actualizarPreview();
               actualizarContador();
               actualizarPreviewStrip();
@@ -697,7 +526,7 @@
     }
 
     // ============================================
-    // GUARDAR
+    // GUARDAR CON PROGRESO
     // ============================================
     function guardarInmueble() {
       if (fotosCapturadas.length === 0) {
@@ -705,27 +534,61 @@
         return;
       }
 
-      mostrarEstado('Guardando ' + fotosCapturadas.length + ' fotos...', 'guardando');
       document.getElementById('btn-guardar').disabled = true;
+      document.getElementById('progreso-container').style.display = 'block';
 
-      apiPost({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosCapturadas })
-        .then(function(resultado) {
-          if (resultado && resultado.success) {
-            mostrarEstado('Inmueble guardado!', 'exito');
-            setTimeout(function() {
-              reiniciarApp();
-              cargarInmuebles();
-            }, 2000);
-          } else {
-            mostrarEstado('Error al guardar', 'error');
-            document.getElementById('btn-guardar').disabled = false;
-          }
-        })
-        .catch(function(err) {
-          mostrarEstado('Error de conexion', 'error');
-          document.getElementById('btn-guardar').disabled = false;
-          console.error(err);
+      var totalFotos = fotosCapturadas.length;
+      var LOTE_SIZE = 5;
+      var lotes = [];
+
+      for (var i = 0; i < totalFotos; i += LOTE_SIZE) {
+        lotes.push(fotosCapturadas.slice(i, i + LOTE_SIZE));
+      }
+
+      var lotesEnviados = 0;
+
+      mostrarEstado('Guardando fotos...', 'guardando');
+      actualizarProgreso(0, totalFotos);
+
+      function enviarLote() {
+        if (lotesEnviados >= lotes.length) {
+          mostrarEstado('Inmueble guardado! ' + totalFotos + ' fotos', 'exito');
+          document.getElementById('barra-progreso').style.width = '100%';
+          document.getElementById('texto-progreso').textContent = totalFotos + ' de ' + totalFotos + ' fotos guardadas';
+          setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
+          return;
+        }
+
+        var lote = lotes[lotesEnviados];
+        var fotosGuardadas = lotesEnviados * LOTE_SIZE;
+
+        document.getElementById('texto-progreso').textContent =
+          'Enviando lote ' + (lotesEnviados + 1) + ' de ' + lotes.length + '...';
+
+        fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: lote })
+        }).then(function() {
+          lotesEnviados++;
+          var totalAhora = Math.min(lotesEnviados * LOTE_SIZE, totalFotos);
+          actualizarProgreso(totalAhora, totalFotos);
+          setTimeout(enviarLote, 500);
+        }).catch(function(err) {
+          console.error('Error enviando lote:', err);
+          mostrarEstado('Error en lote ' + (lotesEnviados + 1) + '. Reintentando...', 'error');
+          setTimeout(enviarLote, 2000);
         });
+      }
+
+      enviarLote();
+    }
+
+    function actualizarProgreso(actual, total) {
+      var porcentaje = Math.round((actual / total) * 100);
+      document.getElementById('barra-progreso').style.width = porcentaje + '%';
+      document.getElementById('texto-progreso').textContent = actual + ' de ' + total + ' fotos (' + porcentaje + '%)';
     }
 
     function cancelarSesion() {
@@ -742,6 +605,8 @@
       document.getElementById('fotos-preview').innerHTML = '';
       document.getElementById('preview-strip').innerHTML = '';
       document.getElementById('btn-guardar').disabled = false;
+      document.getElementById('progreso-container').style.display = 'none';
+      document.getElementById('barra-progreso').style.width = '0%';
       document.getElementById('estado-captura').style.display = 'none';
     }
 
@@ -749,8 +614,6 @@
     // LISTA INMUEBLES
     // ============================================
     function cargarInmuebles() {
-      if (!API_URL) { document.getElementById('modal-config').style.display = 'block'; return; }
-
       var contenedor = document.getElementById('lista-inmuebles');
       contenedor.innerHTML = '<p style="color:#8892b0;text-align:center;"><span class="spinner"></span> Cargando...</p>';
 
@@ -809,9 +672,7 @@
         });
     }
 
-    function cerrarModal() {
-      document.getElementById('modal-fotos').style.display = 'none';
-    }
+    function cerrarModal() { document.getElementById('modal-fotos').style.display = 'none'; }
 
     // ============================================
     // UTILIDAD
@@ -824,18 +685,10 @@
       estado.textContent = mensaje;
     }
 
-    // ============================================
-    // INIT
-    // ============================================
-    window.onload = function() {
-      if (API_URL) cargarInmuebles();
-    };
+    window.onload = function() { cargarInmuebles(); };
 
     document.onkeydown = function(e) {
-      if (e.key === 'Escape') {
-        cerrarModal();
-        cerrarCamara();
-      }
+      if (e.key === 'Escape') { cerrarModal(); cerrarCamara(); }
     };
   </script>
 </body>

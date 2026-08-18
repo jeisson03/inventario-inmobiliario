@@ -568,11 +568,35 @@
       e.style.display = 'block'; e.className = 'estado estado-' + tipo; e.textContent = mensaje;
     }
 
-    window.onload = function() { cargarInmuebles(); };
+    function verificarPendientesAlVolver() {
+      dbGetAll('fotos').then(function(fotos) {
+        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
+        if (pendientes.length > 0 && estaOnline()) {
+          dbGetAll('config').then(function(configs) {
+            var inmConfig = configs.find(function(c) { return c.key === 'inmuebleActual'; });
+            if (inmConfig) {
+              inmuebleActualId = inmConfig.id;
+              mostrarEstado('Hay ' + pendientes.length + ' fotos pendientes. Subiendo...', 'guardando');
+              subirPendientes();
+            }
+          });
+        }
+      });
+    }
+
+    window.onload = function() {
+      cargarInmuebles();
+      verificarPendientesAlVolver();
+    };
+
+    window.addEventListener('visibilitychange', function() {
+      if (!document.hidden && estaOnline()) {
+        verificarPendientesAlVolver();
+      }
+    });
 
     window.addEventListener('online', function() {
-      mostrarEstado('Conexion restaurada! Subiendo fotos...', 'guardando');
-      subirPendientes();
+      verificarPendientesAlVolver();
     });
     window.addEventListener('offline', function() {
       mostrarEstado('Sin internet. Las fotos se guardan localmente', 'activo');

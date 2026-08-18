@@ -356,7 +356,7 @@
           r.inmuebles.forEach(function(inm) {
             var div = document.createElement('div');
             div.className = 'inmueble-item';
-            div.innerHTML = '<div><div class="inmueble-nombre">' + inm.nombre + '</div><div class="inmueble-fotos">' + inm.fotos + ' fotos</div></div><div class="inmueble-acciones"><button class="btn-sm btn-ver" onclick="verFotos(\'' + inm.id + '\',\'' + inm.nombre.replace(/'/g, "\\'") + '\')">Ver</button></div>';
+            div.innerHTML = '<div class="inmueble-nombre">' + inm.nombre + '</div>';
             c.appendChild(div);
           });
         } else { c.innerHTML = '<p style="color:#ff6b6b;text-align:center;">Error al cargar</p>'; }

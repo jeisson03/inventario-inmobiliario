@@ -14,13 +14,6 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  if (p.action === 'guardarFotos') {
-    var fotos = JSON.parse(p.fotos);
-    Logger.log('guardarFotos: ' + fotos.length + ' fotos para carpeta ' + p.carpetaId);
-    return ContentService.createTextOutput(JSON.stringify(guardarFotos(p.carpetaId, fotos)))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
   if (p.action === 'listar') {
     return ContentService.createTextOutput(JSON.stringify(listarInmuebles()))
       .setMimeType(ContentService.MimeType.JSON);
@@ -43,6 +36,30 @@ function doGet(e) {
 
   return ContentService.createTextOutput(JSON.stringify({ok: true}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    Logger.log('doPost recibido');
+    var data = JSON.parse(e.postData.contents);
+    Logger.log('doPost action: ' + data.action);
+
+    if (data.action === 'guardarFotos') {
+      var fotos = data.fotos;
+      Logger.log('guardarFotos: ' + fotos.length + ' fotos para carpeta ' + data.carpetaId);
+      var result = guardarFotos(data.carpetaId, fotos);
+      Logger.log('guardarFotos resultado: ' + JSON.stringify(result));
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({success: false, error: 'accion no valida'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (e) {
+    Logger.log('doPost error: ' + e.message);
+    return ContentService.createTextOutput(JSON.stringify({success: false, error: e.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function getCarpetaRaiz() {

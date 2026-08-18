@@ -178,11 +178,24 @@
       var qs = '';
       for (var k in params) { qs += (qs ? '&' : '?') + k + '=' + encodeURIComponent(params[k]); }
       var url = API_URL + qs;
-      debugLog('→ ' + params.action + ' (URL: ' + url.length + ' chars)');
+      debugLog('→ GET ' + params.action + ' (' + url.length + ' chars)');
       return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
         debugLog('← ' + params.action + ': ' + JSON.stringify(data).substring(0, 200), 'ok');
         return data;
       }).catch(function(e) { debugLog('ERROR: ' + e.message, 'err'); return null; });
+    }
+
+    function apiPost(data) {
+      debugLog('→ POST guardarFotos (' + JSON.stringify(data).length + ' chars body)');
+      return fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(data)
+      }).then(function() {
+        debugLog('← POST enviado (no-cors, respuesta no visible)', 'ok');
+        return { success: true };
+      }).catch(function(e) { debugLog('ERROR POST: ' + e.message, 'err'); return null; });
     }
 
     var fotosCapturadas = [];
@@ -312,33 +325,18 @@
       if (!confirm('Guardar ' + fotosCapturadas.length + ' fotos?')) return;
       document.getElementById('btn-guardar').disabled = true;
       document.getElementById('progreso-container').style.display = 'block';
-      var total = fotosCapturadas.length;
-      var LOTE = 1;
-      var lotes = [];
-      for (var i = 0; i < total; i += LOTE) { lotes.push(fotosCapturadas.slice(i, i + LOTE)); }
-      var enviados = 0;
+      document.getElementById('barra-progreso').style.width = '30%';
+      document.getElementById('texto-progreso').textContent = 'Enviando ' + fotosCapturadas.length + ' fotos...';
       mostrarEstado('Guardando fotos...', 'guardando');
 
-      function enviar() {
-        if (enviados >= lotes.length) {
-          mostrarEstado('Guardado! ' + total + ' fotos', 'exito');
-          document.getElementById('barra-progreso').style.width = '100%';
-          setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
-          return;
-        }
-        document.getElementById('texto-progreso').textContent = 'Lote ' + (enviados + 1) + ' de ' + lotes.length + '...';
-        var fotosJson = JSON.stringify(lotes[enviados]);
-        apiGet({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosJson }).then(function(r) {
-          enviados++;
-          document.getElementById('barra-progreso').style.width = Math.round((enviados / lotes.length) * 100) + '%';
-          document.getElementById('texto-progreso').textContent = Math.min(enviados * LOTE, total) + ' de ' + total + ' fotos';
-          setTimeout(enviar, 200);
-        }).catch(function() {
-          mostrarEstado('Error. Reintentando...', 'error');
-          setTimeout(enviar, 2000);
-        });
-      }
-      enviar();
+      apiPost({ action: 'guardarFotos', carpetaId: inmuebleActualId, fotos: fotosCapturadas }).then(function(r) {
+        document.getElementById('barra-progreso').style.width = '100%';
+        mostrarEstado('Guardado! ' + fotosCapturadas.length + ' fotos', 'exito');
+        setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 2000);
+      }).catch(function() {
+        mostrarEstado('Error al guardar', 'error');
+        document.getElementById('btn-guardar').disabled = false;
+      });
     }
 
     function cancelarSesion() {

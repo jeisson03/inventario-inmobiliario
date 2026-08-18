@@ -267,6 +267,7 @@
     var flashOn = false;
     var subiendo = 0;
     var guardando = false;
+    var autoSubiendo = false;
 
     function estaOnline() {
       return navigator.onLine;
@@ -590,6 +591,7 @@
 
     function guardarInmueble() {
       if (guardando) return;
+      autoSubiendo = false;
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
         if (pendientes.length === 0) {
@@ -681,29 +683,109 @@
           if (!inmConfig) return;
           inmuebleActualId = inmConfig.id;
 
+          document.getElementById('seccion-nuevo').style.display = 'none';
+          document.getElementById('seccion-captura').style.display = 'block';
+          document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
+          document.getElementById('count-grande').textContent = total;
+          document.getElementById('progreso-container').style.display = 'block';
+          document.getElementById('subida-info').style.color = '#FFB01A';
+          document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
+
           if (pendientes.length > 0 && estaOnline()) {
-            guardando = true;
-            document.getElementById('seccion-nuevo').style.display = 'none';
-            document.getElementById('seccion-captura').style.display = 'block';
-            document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
-            document.getElementById('count-grande').textContent = total;
-            document.getElementById('btn-guardar').style.display = 'none';
-            document.getElementById('progreso-container').style.display = 'block';
-            document.getElementById('subida-info').style.color = '#FFB01A';
-            document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
             mostrarEstado('Subiendo fotos automaticamente...', 'guardando');
-            subirPendientes();
+            autoSubirPendientes();
           } else if (pendientes.length > 0 && !estaOnline()) {
-            document.getElementById('seccion-nuevo').style.display = 'none';
-            document.getElementById('seccion-captura').style.display = 'block';
-            document.getElementById('inmueble-actual').textContent = inmConfig.nombre;
-            document.getElementById('count-grande').textContent = total;
-            document.getElementById('progreso-container').style.display = 'block';
-            document.getElementById('subida-info').style.color = '#FFB01A';
-            document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';
             mostrarEstado(pendientes.length + ' fotos sin guardar. Presione Guardar', 'activo');
           }
         });
+      });
+    }
+
+    function autoSubirPendientes() {
+      if (autoSubiendo || guardando) return;
+      if (subiendo >= MAX_PARALELOS) return;
+      if (!estaOnline()) return;
+      autoSubiendo = true;
+
+      dbGetAll('fotos').then(function(fotos) {
+        var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
+        if (pendientes.length === 0) {
+          autoSubiendo = false;
+          mostrarEstado('Todas las fotos subidas!', 'exito');
+          setTimeout(function() { mostrarEstado(null); }, 3000);
+          return;
+        }
+
+        var carpetaId = pendientes[0].carpetaId;
+
+        function continuarSubida(id) {
+          var lote = pendientes.slice(0, LOTE);
+          subiendo++;
+
+          var iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.name = 'upload-auto-' + Date.now();
+          document.body.appendChild(iframe);
+
+          var form = document.createElement('form');
+          form.method = 'POST';
+          form.action = API_URL;
+          form.target = iframe.name;
+          form.enctype = 'application/x-www-form-urlencoded';
+
+          var inputData = document.createElement('input');
+          inputData.type = 'hidden';
+          inputData.name = 'data';
+          inputData.value = JSON.stringify({ action: 'guardarFotos', carpetaId: id, fotos: lote.map(function(f) { return { base64: f.base64, nombre: f.nombre }; }) });
+          form.appendChild(inputData);
+          document.body.appendChild(form);
+
+          iframe.onload = function() {
+            subiendo--;
+            var promises = lote.map(function(f) {
+              return dbDelete('fotos', f.id);
+            });
+            Promise.all(promises).then(function() {
+              actualizarContador();
+              form.remove();
+              iframe.remove();
+              autoSubirPendientes();
+            });
+          };
+
+          form.submit();
+        }
+
+        if (carpetaId && carpetaId.indexOf('local_') === 0) {
+          dbGetAll('config').then(function(configs) {
+            var inmConfig = configs.find(function(c) { return c.key === 'inmuebleActual'; });
+            if (inmConfig) {
+              mostrarEstado('Sincronizando inmueble...', 'guardando');
+              apiGet({ action: 'crear', nombre: inmConfig.nombre }).then(function(r) {
+                if (r && r.success) {
+                  var promises = pendientes.map(function(f) {
+                    f.carpetaId = r.id;
+                    return openDB().then(function(d) {
+                      return new Promise(function(resolve) {
+                        var tx = d.transaction('fotos', 'readwrite');
+                        tx.objectStore('fotos').put(f);
+                        tx.oncomplete = resolve;
+                      });
+                    });
+                  });
+                  Promise.all(promises).then(function() {
+                    inmuebleActualId = r.id;
+                    dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: inmConfig.nombre, offline: false });
+                    mostrarEstado('Subiendo fotos...', 'guardando');
+                    continuarSubida(r.id);
+                  });
+                }
+              });
+            }
+          });
+        } else if (carpetaId) {
+          continuarSubida(carpetaId);
+        }
       });
     }
 

@@ -89,8 +89,7 @@ function crearInmueble(nombre) {
     if (!nombre || nombre.trim() === '') throw new Error('Nombre requerido');
     var limpio = nombre.trim().replace(/[\/\\:*?"<>|]/g, '_').replace(/\s+/g, '_');
     var raiz = getCarpetaRaiz();
-    var ts = new Date().getTime();
-    var carpeta = raiz.createFolder(limpio + '_' + ts);
+    var carpeta = raiz.createFolder(limpio);
     return { success: true, id: carpeta.getId(), nombre: nombre };
   } catch (e) { return { success: false, error: e.message }; }
 }

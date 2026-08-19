@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.jeisson03.twa",
+        "sha256_cert_fingerprints": ["6D:56:35:C6:FD:E4:E5:4E:8C:3F:8E:6B:78:33:CC:64:5A:B6:C0:F6:8F:9F:E4:27:ED:B8:26:4B:97:30:44:95"]
+      }
+    }]

@@ -1,5 +1,13 @@
-var CACHE_NAME = 'inventario-v1';
-var urlsToCache = ['/inventario-inmobiliario/'];
+var CACHE_NAME = 'inventario-v2';
+var urlsToCache = [
+  '/inventario-inmobiliario/',
+  '/inventario-inmobiliario/index.html',
+  '/inventario-inmobiliario/logo.png',
+  '/inventario-inmobiliario/icon-192.png',
+  '/inventario-inmobiliario/icon-512.png',
+  '/inventario-inmobiliario/manifest.json',
+  '/inventario-inmobiliario/sw.js'
+];
 
 self.addEventListener('install', function(event) {
   event.waitUntil(

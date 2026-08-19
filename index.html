@@ -450,7 +450,12 @@
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente' || f.estado === 'guardado'; });
         if (pendientes.length === 0) {
           subiendoLock = false;
-          if (guardando) { finalizarGuardado(); }
+          if (guardando) {
+            finalizarGuardado();
+          } else {
+            mostrarEstado('Todas las fotos subidas!', 'exito');
+            actualizarContador();
+          }
           return;
         }
 
@@ -534,7 +539,8 @@
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente'; });
         if (pendientes.length === 0) {
-          mostrarEstado('No hay fotos pendientes', 'activo');
+          reiniciarApp();
+          cargarInmuebles();
           return;
         }
         guardando = true;
@@ -556,7 +562,8 @@
           });
           Promise.all(promises).then(function() {
             guardando = false;
-            mostrarEstado('Guardado! Se subira cuando haya internet', 'activo');
+            reiniciarApp();
+            cargarInmuebles();
           });
         }
       });
@@ -567,8 +574,8 @@
       clearInterval(intervaloCola);
       intervaloCola = null;
       document.getElementById('barra-progreso').style.width = '100%';
-      mostrarEstado('Guardado! Todas las fotos en Drive', 'exito');
-      setTimeout(function() { reiniciarApp(); cargarInmuebles(); }, 1500);
+      reiniciarApp();
+      cargarInmuebles();
     }
 
     function cancelarSesion() {
@@ -627,9 +634,9 @@
           inmuebleActualId = inmConfig.id;
 
           if (pendientes.length > 0 && estaOnline()) {
-            guardando = true;
+            guardando = false;
             abrirCaptura(inmConfig.nombre, false);
-            document.getElementById('btn-guardar').style.display = 'none';
+            document.getElementById('btn-guardar').style.display = 'block';
             document.getElementById('progreso-container').style.display = 'block';
             document.getElementById('subida-info').style.color = '#FFB01A';
             document.getElementById('subida-info').textContent = subidas.length + ' de ' + total + ' fotos subidas';

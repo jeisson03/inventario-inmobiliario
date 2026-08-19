@@ -406,6 +406,7 @@
       dbGetAll('fotos').then(function(fotos) {
         var pendientes = fotos.filter(function(f) { return f.estado === 'pendiente' || f.estado === 'guardado'; });
         var subidas = fotos.filter(function(f) { return f.estado === 'subida'; });
+        var total = pendientes.length + subidas.length;
         var el = document.getElementById('subida-info');
         if (pendientes.length > 0) {
           el.textContent = subidas.length + ' subidas, ' + pendientes.length + ' pendientes';
@@ -416,8 +417,8 @@
         } else {
           el.textContent = '';
         }
-        document.getElementById('count-grande').textContent = subidas.length + pendientes.length;
-        var total = subidas.length + pendientes.length;
+        document.getElementById('count-grande').textContent = total;
+        document.getElementById('camara-contador').textContent = total + ' fotos';
         var pct = total > 0 ? Math.round((subidas.length / total) * 100) : 0;
         document.getElementById('barra-progreso').style.width = pct + '%';
         renderFotos(fotos);

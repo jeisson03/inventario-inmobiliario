@@ -360,7 +360,16 @@
       });
     }
 
-    function toggleFlash() { flashOn = !flashOn; document.getElementById('btn-flash').classList.toggle('flash-on', flashOn); }
+    function toggleFlash() {
+      flashOn = !flashOn;
+      document.getElementById('btn-flash').classList.toggle('flash-on', flashOn);
+      if (streamCamara) {
+        var track = streamCamara.getVideoTracks()[0];
+        if (track && track.getCapabilities && track.getCapabilities().torch) {
+          track.applyConstraints({ advanced: [{ torch: flashOn }] }).catch(function() {});
+        }
+      }
+    }
 
     function procesarGaleria(event) {
       var archivos = event.target.files;

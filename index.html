@@ -342,7 +342,17 @@
       var scale = maxW / canvas.width;
       resizeCanvas.width = maxW;
       resizeCanvas.height = canvas.height * scale;
-      resizeCanvas.getContext('2d').drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+      var rctx = resizeCanvas.getContext('2d');
+      rctx.drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+
+      var ahora = new Date();
+      var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+      rctx.font = 'bold 24px sans-serif';
+      rctx.fillStyle = 'rgba(0,0,0,0.7)';
+      rctx.fillRect(10, resizeCanvas.height - 40, rctx.measureText(fechaHora).width + 20, 34);
+      rctx.fillStyle = '#fff';
+      rctx.fillText(fechaHora, 20, resizeCanvas.height - 16);
+
       var base64 = resizeCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
       var foto = {
@@ -381,21 +391,42 @@
         (function(archivo) {
           var reader = new FileReader();
           reader.onload = function(e) {
-            var foto = {
-              base64: e.target.result.split(',')[1],
-              nombre: 'foto_' + Date.now() + '_' + procesadas + '.jpg',
-              carpetaId: inmuebleActualId,
-              estado: 'pendiente',
-              timestamp: Date.now()
+            var img = new Image();
+            img.onload = function() {
+              var canvas = document.createElement('canvas');
+              var maxW = 1280;
+              var scale = maxW / img.width;
+              canvas.width = maxW;
+              canvas.height = img.height * scale;
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+              var ahora = new Date();
+              var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+              ctx.font = 'bold 24px sans-serif';
+              ctx.fillStyle = 'rgba(0,0,0,0.7)';
+              ctx.fillRect(10, canvas.height - 40, ctx.measureText(fechaHora).width + 20, 34);
+              ctx.fillStyle = '#fff';
+              ctx.fillText(fechaHora, 20, canvas.height - 16);
+
+              var base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+              var foto = {
+                base64: base64,
+                nombre: 'foto_' + Date.now() + '_' + procesadas + '.jpg',
+                carpetaId: inmuebleActualId,
+                estado: 'pendiente',
+                timestamp: Date.now()
+              };
+              dbAdd('fotos', foto).then(function() {
+                procesadas++;
+                if (procesadas === archivos.length) {
+                  mostrarEstado(procesadas + ' fotos agregadas', 'activo');
+                  actualizarContador();
+                  if (estaOnline()) { subirFotos(); }
+                }
+              });
             };
-            dbAdd('fotos', foto).then(function() {
-              procesadas++;
-              if (procesadas === archivos.length) {
-                mostrarEstado(procesadas + ' fotos agregadas', 'activo');
-                actualizarContador();
-                if (estaOnline()) { subirFotos(); }
-              }
-            });
+            img.src = e.target.result;
           };
           reader.readAsDataURL(archivo);
         })(archivos[i]);

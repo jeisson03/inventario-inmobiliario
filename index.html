@@ -347,11 +347,11 @@
 
       var ahora = new Date();
       var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
-      rctx.font = 'bold 24px sans-serif';
+      rctx.font = 'bold 36px sans-serif';
       rctx.fillStyle = 'rgba(0,0,0,0.7)';
-      rctx.fillRect(10, resizeCanvas.height - 40, rctx.measureText(fechaHora).width + 20, 34);
+      rctx.fillRect(10, resizeCanvas.height - 50, rctx.measureText(fechaHora).width + 20, 44);
       rctx.fillStyle = '#fff';
-      rctx.fillText(fechaHora, 20, resizeCanvas.height - 16);
+      rctx.fillText(fechaHora, 20, resizeCanvas.height - 18);
 
       var base64 = resizeCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
@@ -403,11 +403,11 @@
 
               var ahora = new Date();
               var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
-              ctx.font = 'bold 24px sans-serif';
+              ctx.font = 'bold 36px sans-serif';
               ctx.fillStyle = 'rgba(0,0,0,0.7)';
-              ctx.fillRect(10, canvas.height - 40, ctx.measureText(fechaHora).width + 20, 34);
+              ctx.fillRect(10, canvas.height - 50, ctx.measureText(fechaHora).width + 20, 44);
               ctx.fillStyle = '#fff';
-              ctx.fillText(fechaHora, 20, canvas.height - 16);
+              ctx.fillText(fechaHora, 20, canvas.height - 18);
 
               var base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
               var foto = {

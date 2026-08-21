@@ -127,9 +127,10 @@
         </div>
       </div>
       <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="boton boton-camara" onclick="abrirCamara()" style="flex:1;">Tomar Fotos</button>
+        <button class="boton boton-camara" onclick="abrirCamaraNativa()" style="flex:1;">Tomar Fotos</button>
         <button class="boton boton-galeria" onclick="document.getElementById('input-galeria').click()" style="flex:1;">Galeria</button>
       </div>
+      <input type="file" id="input-camara" accept="image/*" capture="environment" onchange="procesarCamaraNativa(event)" style="display:none;">
       <input type="file" id="input-galeria" accept="image/*" multiple onchange="procesarGaleria(event)">
       <div id="fotos-grid" class="fotos-grid"></div>
       <div id="estado-captura" class="estado estado-activo" style="display:none;"></div>
@@ -418,6 +419,56 @@
       if (streamCamara) { streamCamara.getTracks().forEach(function(t) { t.stop(); }); streamCamara = null; }
       document.getElementById('camara-video').srcObject = null;
       document.getElementById('camara-overlay').classList.remove('activo');
+    }
+
+    function abrirCamaraNativa() {
+      var input = document.getElementById('input-camara');
+      input.value = '';
+      input.click();
+    }
+
+    function procesarCamaraNativa(event) {
+      var archivo = event.target.files[0];
+      if (!archivo) return;
+      mostrarEstado('Procesando foto...', 'guardando');
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          var maxW = 1920;
+          var scale = maxW / img.width;
+          canvas.width = maxW;
+          canvas.height = img.height * scale;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          var ahora = new Date();
+          var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+          ctx.font = 'bold 36px sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(10, canvas.height - 50, ctx.measureText(fechaHora).width + 20, 44);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(fechaHora, 20, canvas.height - 18);
+
+          var base64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+          var foto = {
+            base64: base64,
+            nombre: 'foto_' + Date.now() + '.jpg',
+            carpetaId: inmuebleActualId,
+            estado: 'pendiente',
+            timestamp: Date.now()
+          };
+          dbAdd('fotos', foto).then(function() {
+            mostrarEstado('Foto agregada', 'activo');
+            actualizarContador();
+            if (estaOnline()) { subirFotos(); }
+          });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(archivo);
+      event.target.value = '';
     }
 
     function tomarFoto() {

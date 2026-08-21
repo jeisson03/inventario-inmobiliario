@@ -1,4 +1,4 @@
-var CACHE_NAME = 'inventario-v2';
+var CACHE_NAME = 'inventario-v3';
 var urlsToCache = [
   '/inventario-inmobiliario/',
   '/inventario-inmobiliario/index.html',
@@ -19,7 +19,14 @@ self.addEventListener('install', function(event) {
 });
 
 self.addEventListener('activate', function(event) {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(function(names) {
+      return Promise.all(
+        names.filter(function(name) { return name !== CACHE_NAME; })
+             .map(function(name) { return caches.delete(name); })
+      );
+    }).then(function() { self.clients.claim(); })
+  );
 });
 
 self.addEventListener('fetch', function(event) {

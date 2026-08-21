@@ -377,8 +377,7 @@
       if (streamCamara) {
         var track = streamCamara.getVideoTracks()[0];
         if (track.applyConstraints) {
-          var zApply = zoomActual < zoomMin ? zoomMin : zoomActual;
-          track.applyConstraints({ advanced: [{ zoom: zApply }] }).catch(function() {});
+          track.applyConstraints({ advanced: [{ zoom: zoomActual }] }).catch(function() {});
         }
       }
       var btns = document.querySelectorAll('.zoom-btn');
@@ -429,23 +428,20 @@
       if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0); ctx.filter = 'none';
 
-      var angulo = 0;
-      if (screen.orientation && screen.orientation.angle !== undefined) {
-        angulo = screen.orientation.angle;
-      } else if (window.orientation !== undefined) {
-        angulo = window.orientation;
-      }
+      var esLandscapeSensor = canvas.width > canvas.height;
+      var esPortraitPantalla = window.innerHeight > window.innerWidth;
+      var rotar = esLandscapeSensor && esPortraitPantalla;
 
       var resizeCanvas = document.createElement('canvas');
       var rctx = resizeCanvas.getContext('2d');
-      var maxW = 1280;
+      var maxW = 1920;
 
-      if (angulo === 90 || angulo === -90 || angulo === 270) {
+      if (rotar) {
         var scale = maxW / canvas.height;
         resizeCanvas.width = maxW;
         resizeCanvas.height = canvas.width * scale;
         rctx.translate(resizeCanvas.width / 2, resizeCanvas.height / 2);
-        rctx.rotate(-angulo * Math.PI / 180);
+        rctx.rotate(-90 * Math.PI / 180);
         rctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
       } else {
         var scale = maxW / canvas.width;
@@ -462,7 +458,7 @@
       rctx.fillStyle = '#fff';
       rctx.fillText(fechaHora, 20, resizeCanvas.height - 18);
 
-      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      var base64 = resizeCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 
       var foto = {
         base64: base64,
@@ -503,7 +499,7 @@
             var img = new Image();
             img.onload = function() {
               var canvas = document.createElement('canvas');
-              var maxW = 1280;
+              var maxW = 1920;
               var scale = maxW / img.width;
               canvas.width = maxW;
               canvas.height = img.height * scale;
@@ -518,7 +514,7 @@
               ctx.fillStyle = '#fff';
               ctx.fillText(fechaHora, 20, canvas.height - 18);
 
-              var base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+              var base64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
               var foto = {
                 base64: base64,
                 nombre: 'foto_' + Date.now() + '_' + procesadas + '.jpg',

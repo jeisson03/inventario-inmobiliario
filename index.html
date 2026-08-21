@@ -127,9 +127,10 @@
         </div>
       </div>
       <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="boton boton-camara" onclick="abrirCamaraNativa()" style="flex:1;">Tomar Fotos</button>
-        <button class="boton boton-galeria" onclick="document.getElementById('input-galeria').click()" style="flex:1;">Galeria</button>
+        <button class="boton boton-camara" onclick="abrirCamara()" style="flex:1;">Camara Rapida</button>
+        <button class="boton boton-galeria" onclick="abrirCamaraNativa()" style="flex:1;">Camara Nativa</button>
       </div>
+      <button class="boton boton-secundario" onclick="document.getElementById('input-galeria').click()">Galeria</button>
       <input type="file" id="input-camara" accept="image/*" capture="environment" onchange="procesarCamaraNativa(event)" style="display:none;">
       <input type="file" id="input-galeria" accept="image/*" multiple onchange="procesarGaleria(event)">
       <div id="fotos-grid" class="fotos-grid"></div>

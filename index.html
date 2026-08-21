@@ -429,13 +429,30 @@
       if (flashOn) ctx.filter = 'brightness(1.3)';
       ctx.drawImage(video, 0, 0); ctx.filter = 'none';
 
+      var angulo = 0;
+      if (screen.orientation && screen.orientation.angle !== undefined) {
+        angulo = screen.orientation.angle;
+      } else if (window.orientation !== undefined) {
+        angulo = window.orientation;
+      }
+
       var resizeCanvas = document.createElement('canvas');
-      var maxW = 1280;
-      var scale = maxW / canvas.width;
-      resizeCanvas.width = maxW;
-      resizeCanvas.height = canvas.height * scale;
       var rctx = resizeCanvas.getContext('2d');
-      rctx.drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+      var maxW = 1280;
+
+      if (angulo === 90 || angulo === -90 || angulo === 270) {
+        var scale = maxW / canvas.height;
+        resizeCanvas.width = maxW;
+        resizeCanvas.height = canvas.width * scale;
+        rctx.translate(resizeCanvas.width / 2, resizeCanvas.height / 2);
+        rctx.rotate(-angulo * Math.PI / 180);
+        rctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+      } else {
+        var scale = maxW / canvas.width;
+        resizeCanvas.width = maxW;
+        resizeCanvas.height = canvas.height * scale;
+        rctx.drawImage(canvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
+      }
 
       var ahora = new Date();
       var fechaHora = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});

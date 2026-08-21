@@ -319,6 +319,10 @@
 
     var zoomActual = 1;
     var zoomDisponibles = [];
+    var zoomMin = 0.5;
+    var zoomMax = 10;
+    var pinchStartDist = 0;
+    var pinchStartZoom = 1;
 
     function abrirCamara() {
       zoomActual = 1;
@@ -330,20 +334,23 @@
         streamCamara = stream;
         document.getElementById('camara-video').srcObject = stream;
         var track = stream.getVideoTracks()[0];
+        zoomDisponibles = [0.5, 1, 2, 3, 5];
         if (track.getCapabilities) {
           var caps = track.getCapabilities();
           if (caps.zoom) {
-            var minZ = caps.zoom.min;
-            var maxZ = caps.zoom.max;
+            zoomMin = caps.zoom.min;
+            zoomMax = caps.zoom.max;
             zoomDisponibles = [];
             var posibles = [0.5, 1, 2, 3, 4, 5, 6, 8, 10];
             for (var i = 0; i < posibles.length; i++) {
-              if (posibles[i] >= minZ && posibles[i] <= maxZ) zoomDisponibles.push(posibles[i]);
+              if (posibles[i] >= zoomMin && posibles[i] <= zoomMax) zoomDisponibles.push(posibles[i]);
             }
             if (zoomDisponibles.indexOf(1) === -1) zoomDisponibles.unshift(1);
+            if (zoomDisponibles.indexOf(0.5) === -1 && zoomMin <= 0.5) zoomDisponibles.unshift(0.5);
           }
         }
         construirZoomUI();
+        activarPinchZoom();
       })
       .catch(function() { cerrarCamara(); alert('No se pudo acceder a la camara.'); });
     }
@@ -351,7 +358,6 @@
     function construirZoomUI() {
       var contenedor = document.getElementById('cam-zoom');
       contenedor.innerHTML = '';
-      if (zoomDisponibles.length <= 1) { contenedor.style.display = 'none'; return; }
       contenedor.style.display = 'flex';
       for (var i = 0; i < zoomDisponibles.length; i++) {
         (function(z) {
@@ -365,17 +371,46 @@
     }
 
     function setZoom(valor) {
-      zoomActual = valor;
+      if (valor < zoomMin) valor = zoomMin;
+      if (valor > zoomMax) valor = zoomMax;
+      zoomActual = Math.round(valor * 10) / 10;
       if (streamCamara) {
         var track = streamCamara.getVideoTracks()[0];
         if (track.applyConstraints) {
-          track.applyConstraints({ advanced: [{ zoom: valor }] }).catch(function() {});
+          track.applyConstraints({ advanced: [{ zoom: zoomActual }] }).catch(function() {});
         }
       }
       var btns = document.querySelectorAll('.zoom-btn');
       for (var i = 0; i < btns.length; i++) {
-        btns[i].classList.toggle('activo', btns[i].textContent === valor + 'x');
+        var zVal = parseFloat(btns[i].textContent);
+        btns[i].classList.toggle('activo', Math.abs(zVal - zoomActual) < 0.05);
       }
+    }
+
+    function activarPinchZoom() {
+      var container = document.getElementById('camara-video-container');
+      container.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          pinchStartDist = getDistancia(e.touches[0], e.touches[1]);
+          pinchStartZoom = zoomActual;
+        }
+      }, { passive: false });
+      container.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          var dist = getDistancia(e.touches[0], e.touches[1]);
+          var ratio = dist / pinchStartDist;
+          var nuevoZoom = pinchStartZoom * ratio;
+          setZoom(nuevoZoom);
+        }
+      }, { passive: false });
+    }
+
+    function getDistancia(t1, t2) {
+      var dx = t1.clientX - t2.clientX;
+      var dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
     }
 
     function cerrarCamara() {

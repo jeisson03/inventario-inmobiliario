@@ -64,7 +64,7 @@
     .camara-nombre { font-weight: 600; font-size: 0.85rem; color: #FFB01A; }
     .camara-contador { background: rgba(255,85,0,0.85); padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; }
     #camara-video-container { flex: 1; position: relative; overflow: hidden; background: #000; }
-    #camara-video { width: 100%; height: 100%; object-fit: cover; }
+    #camara-video { width: 100%; height: 100%; object-fit: contain; }
     #camara-canvas { display: none; }
     #camara-footer { display: flex; justify-content: center; align-items: center; padding: 18px; background: rgba(0,0,0,0.85); gap: 28px; }
     #btn-disparar { width: 75px; height: 75px; border-radius: 50%; border: 5px solid #fff; background: rgba(255,255,255,0.25); cursor: pointer; position: relative; transition: transform 0.1s; }
@@ -73,6 +73,9 @@
     #btn-disparar:active::after { background: #FF5500; }
     .cam-btn { width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .cam-btn.flash-on { background: rgba(255,176,26,0.5); border-color: #FFB01A; }
+    .cam-zoom { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(0,0,0,0.85); }
+    .zoom-btn { width: 42px; height: 36px; border-radius: 18px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .zoom-btn.activo { background: rgba(255,85,0,0.85); border-color: #FF5500; color: #000; }
     .flash-anim { animation: flashFx 0.15s ease; }
     @keyframes flashFx { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
     .cam-strip { display: flex; gap: 4px; padding: 6px 10px; background: rgba(0,0,0,0.85); overflow-x: auto; }
@@ -154,6 +157,7 @@
       <video id="camara-video" autoplay playsinline muted></video>
       <canvas id="camara-canvas"></canvas>
     </div>
+    <div class="cam-zoom" id="cam-zoom"></div>
     <div class="cam-strip" id="cam-strip"></div>
     <div id="camara-footer">
       <button class="cam-btn" onclick="cerrarCamara()">Listo</button>
@@ -313,13 +317,65 @@
       actualizarContador();
     }
 
+    var zoomActual = 1;
+    var zoomDisponibles = [];
+
     function abrirCamara() {
+      zoomActual = 1;
       document.getElementById('camara-nombre').textContent = document.getElementById('inmueble-actual').textContent;
       document.getElementById('camara-overlay').classList.add('activo');
       navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
-      }).then(function(stream) { streamCamara = stream; document.getElementById('camara-video').srcObject = stream; })
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false
+      }).then(function(stream) {
+        streamCamara = stream;
+        document.getElementById('camara-video').srcObject = stream;
+        var track = stream.getVideoTracks()[0];
+        if (track.getCapabilities) {
+          var caps = track.getCapabilities();
+          if (caps.zoom) {
+            var minZ = caps.zoom.min;
+            var maxZ = caps.zoom.max;
+            zoomDisponibles = [];
+            var posibles = [0.5, 1, 2, 3, 4, 5, 6, 8, 10];
+            for (var i = 0; i < posibles.length; i++) {
+              if (posibles[i] >= minZ && posibles[i] <= maxZ) zoomDisponibles.push(posibles[i]);
+            }
+            if (zoomDisponibles.indexOf(1) === -1) zoomDisponibles.unshift(1);
+          }
+        }
+        construirZoomUI();
+      })
       .catch(function() { cerrarCamara(); alert('No se pudo acceder a la camara.'); });
+    }
+
+    function construirZoomUI() {
+      var contenedor = document.getElementById('cam-zoom');
+      contenedor.innerHTML = '';
+      if (zoomDisponibles.length <= 1) { contenedor.style.display = 'none'; return; }
+      contenedor.style.display = 'flex';
+      for (var i = 0; i < zoomDisponibles.length; i++) {
+        (function(z) {
+          var btn = document.createElement('button');
+          btn.className = 'zoom-btn' + (z === zoomActual ? ' activo' : '');
+          btn.textContent = z + 'x';
+          btn.onclick = function() { setZoom(z); };
+          contenedor.appendChild(btn);
+        })(zoomDisponibles[i]);
+      }
+    }
+
+    function setZoom(valor) {
+      zoomActual = valor;
+      if (streamCamara) {
+        var track = streamCamara.getVideoTracks()[0];
+        if (track.applyConstraints) {
+          track.applyConstraints({ advanced: [{ zoom: valor }] }).catch(function() {});
+        }
+      }
+      var btns = document.querySelectorAll('.zoom-btn');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle('activo', btns[i].textContent === valor + 'x');
+      }
     }
 
     function cerrarCamara() {

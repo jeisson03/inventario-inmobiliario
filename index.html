@@ -460,9 +460,13 @@
             timestamp: Date.now()
           };
           dbAdd('fotos', foto).then(function() {
-            mostrarEstado('Foto agregada', 'activo');
             actualizarContador();
             if (estaOnline()) { subirFotos(); }
+            setTimeout(function() {
+              var input = document.getElementById('input-camara');
+              input.value = '';
+              input.click();
+            }, 300);
           });
         };
         img.src = e.target.result;

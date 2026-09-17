@@ -50,6 +50,15 @@
     return fetch(API_URL + qs).then(function (r) { return r.json(); }).catch(function () { return null; });
   }
 
+  /* Busca la carpeta del inmueble (buscarOCrear); si el backend aun no lo tiene,
+     cae a la accion 'crear' que ya existia. */
+  function obtenerCarpeta(nombre) {
+    return apiGet({ action: 'buscarOCrear', nombre: nombre }).then(function (r) {
+      if (r && r.success) return r;
+      return apiGet({ action: 'crear', nombre: nombre });
+    });
+  }
+
   function limpio(s) { return (s || '').trim().replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_'); }
 
   function esc(s) {
@@ -293,7 +302,7 @@
       return;
     }
 
-    apiGet({ action: 'buscarOCrear', nombre: nombre }).then(function (r) {
+    obtenerCarpeta(nombre).then(function (r) {
       btn.disabled = false;
       btn.innerHTML = 'Buscar / Crear carpeta';
       if (r && r.success) {
@@ -633,7 +642,7 @@
     };
 
     if (!carpetaId || carpetaId.indexOf('local_') === 0) {
-      apiGet({ action: 'buscarOCrear', nombre: estado.nombre }).then(function (r) {
+      obtenerCarpeta(estado.nombre).then(function (r) {
         if (r && r.success) {
           carpetaId = r.id;
           if (localStorage.getItem(claveLocal()) && cargarEstadoLocal()) guardarEstadoLocal();

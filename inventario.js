@@ -35,9 +35,7 @@
   var estado = null;      // datos del formulario actual
   var carpetaId = '';     // id real en Drive (o local_* si aun no se sube)
   var SB_WA = false;      // soporte de reconocimiento de voz
-  var recActivo = null;   // SpeechRecognition activo
-  var recFieldId = null;  // campo en dictado
-  var recInterim = '';    // texto parcial acumulado
+  var sesionDict = null;  // sesión de dictado activa (ver __invMic)
 
   /* ---------- Utilidades ---------- */
   function $(id) { return document.getElementById(id); }
@@ -146,9 +144,9 @@
         '<div><input type="number" min="0" id="' + pk('cant') + '" aria-label="Cantidad"></div>') +
       '<div><input type="text" id="' + pk('mat') + '" placeholder="---" aria-label="Tipo de material" style="' + (prefix === 'll' ? 'display:none;' : '') + '"></div>' +
       '<div class="estado-btns" id="' + pk('btns') + '" style="' + (prefix === 'll' ? 'display:none;' : '') + '">' +
-        '<button type="button" class="est-btn" data-est="B" onclick="window.__invSetEst(\'' + c('btns') + '\',\'B\')">B</button>' +
-        '<button type="button" class="est-btn" data-est="R" onclick="window.__invSetEst(\'' + c('btns') + '\',\'R\')">R</button>' +
-        '<button type="button" class="est-btn" data-est="M" onclick="window.__invSetEst(\'' + c('btns') + '\',\'M\')">M</button>' +
+        '<button type="button" class="est-btn" data-est="B">B</button>' +
+        '<button type="button" class="est-btn" data-est="R">R</button>' +
+        '<button type="button" class="est-btn" data-est="M">M</button>' +
       '</div>' +
       '<div class="obs-wrap">' +
         '<textarea id="' + pk('obs') + '" rows="1" aria-label="Observaciones"></textarea>' +
@@ -219,68 +217,116 @@
 
   window.__invMic = function (fieldId) {
     if (!SB_WA) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
-    if (recActivo) detenerDictado(false);
+    if (sesionDict && sesionDict.activa) { detenerDictado(false); return; }
+    sesionDict = {
+      activa: true,
+      fieldId: fieldId,
+      base: leerValor(fieldId),
+      finalAcum: '',
+      ultIdx: -1,
+      restartT: null
+    };
+    var micb = document.querySelector('[data-field="' + fieldId + '"]');
+    if (micb) micb.classList.add('grabando');
+    lanzarRecon();
+  };
 
+  function leerValor(fieldId) {
+    var el = $(fieldId);
+    return el ? el.value.trim() : '';
+  }
+
+  function lanzarRecon() {
+    if (!sesionDict || !sesionDict.activa) return;
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
     rec.lang = 'es-CO';
-    rec.continuous = true;
+    rec.continuous = false;   // reconocimiento por tramos; se reinicia en onend
     rec.interimResults = true;
 
-    function esLlave() { return fieldId.indexOf('ll_') === 0; }
-    function idxCampo() { return fieldId.replace(/^it_|^ll_/, '').replace('_obs', ''); }
-    function obtenerCont() {
-      if (esLlave()) { estado.llaves = estado.llaves || {}; estado.llaves[idxCampo()] = estado.llaves[idxCampo()] || {}; return estado.llaves[idxCampo()]; }
-      estado.items = estado.items || {}; estado.items[idxCampo()] = estado.items[idxCampo()] || {}; return estado.items[idxCampo()];
-    }
-    function commitFinal(t) {
-      var c = obtenerCont();
-      var previo = (c.obs || '').trim();
-      c.obs = previo ? previo + ' ' + t.trim() : t.trim();
-      $(fieldId).value = c.obs;
-      programarAutosave();
-    }
-
     rec.onresult = function (e) {
-      var parcial = '';
+      if (!sesionDict || !sesionDict.activa) return;
+      var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
+        var seg = (e.results[i][0].transcript || '').trim();
         if (e.results[i].isFinal) {
-          commitFinal(e.results[i][0].transcript.trim());
+          if (i > sesionDict.ultIdx && seg) {
+            sesionDict.ultIdx = i;
+            sesionDict.finalAcum = agregarSegmento(sesionDict.finalAcum, seg);
+          }
         } else {
-          parcial += e.results[i][0].transcript;
+          interim += seg;
         }
       }
-      recInterim = parcial;
-      var base = obtenerCont().obs || '';
-      $(fieldId).value = (base ? base + ' ' : '') + parcial;
-      $(fieldId).scrollTop = $(fieldId).scrollHeight;
-      sincronizarDesdeForm();
+      pintarDictado(interim);
+      var el = $(sesionDict.fieldId);
+      if (el) el.scrollTop = el.scrollHeight;
     };
     rec.onerror = function (e) {
-      detenerDictado(false);
-      if (e.error && e.error !== 'aborted') alert('Error de dictado: ' + e.error);
+      if (e.error === 'not-allowed') { detenerDictado(true); alert('Permiso de micrófono denegado. Actívalo en los ajustes del Chrome.'); }
+      else if (e.error === 'language-not-supported') { detenerDictado(true); alert('El reconocimiento en español no está disponible en este dispositivo.'); }
+      // no-speech / aborted / network: se reintenta en onend
     };
-    rec.onend = function () { detenerDictado(false); };
+    rec.onend = function () {
+      if (sesionDict && sesionDict.activa) {
+        commitDictado();
+        sesionDict.restartT = setTimeout(lanzarRecon, 250);
+      }
+    };
+    try { rec.start(); } catch (e) { detenerDictado(true); }
+  }
 
-    recInterim = '';
-    recActivo = rec;
-    recFieldId = fieldId;
-    var micb = document.querySelector('[data-field="' + fieldId + '"]');
-    if (micb) micb.classList.add('grabando');
-    try { rec.start(); } catch (e) {}
-  };
+  function pintarDictado(interim) {
+    if (!sesionDict) return;
+    var partes = [];
+    if (sesionDict.base) partes.push(sesionDict.base);
+    if (sesionDict.finalAcum && sesionDict.finalAcum.trim()) partes.push(sesionDict.finalAcum.trim());
+    var txt = partes.join(' ') + (interim ? ' ' + interim : '');
+    var el = $(sesionDict.fieldId);
+    if (el) el.value = txt;
+  }
+
+  function commitDictado() {
+    if (!sesionDict) return;
+    pintarDictado('');
+    var el = $(sesionDict.fieldId);
+    if (el) setterCampoObs(sesionDict.fieldId)(el.value.trim());
+    programarAutosave();
+  }
+
+  function setterCampoObs(fieldId) {
+    if (!estado) return function () {};
+    if (fieldId.indexOf('ll_') === 0) {
+      var ki = fieldId.replace(/^ll_/, '').replace('_obs', '');
+      estado.llaves = estado.llaves || {};
+      estado.llaves[ki] = estado.llaves[ki] || {};
+      return function (v) { estado.llaves[ki].obs = v; };
+    }
+    var idx = fieldId.replace(/^it_/, '').replace('_obs', '');
+    estado.items = estado.items || {};
+    estado.items[idx] = estado.items[idx] || {};
+    return function (v) { estado.items[idx].obs = v; };
+  }
+
+  function agregarSegmento(actual, seg) {
+    var a = actual.trim(), s = (seg || '').trim();
+    if (!s) return a;
+    if (!a) return s;
+    if (a === s) return a;
+    if (a.indexOf(s) !== -1) return a;                                  // el tramo ya está contenido (motor repite el acumulado)
+    if (s.indexOf(a) !== -1 && s.length - a.length <= 40) return s;     // crecimiento acumulativo pequeño
+    return a + ' ' + s;
+  }
 
   function detenerDictado(gra) {
-    if (recActivo) { try { recActivo.stop(); } catch (e) {} }
-    if (recFieldId) {
-      var b = document.querySelector('[data-field="' + recFieldId + '"]');
+    if (sesionDict) {
+      sesionDict.activa = false;
+      if (sesionDict.restartT) clearTimeout(sesionDict.restartT);
+      commitDictado();
+      var b = document.querySelector('[data-field="' + sesionDict.fieldId + '"]');
       if (b) b.classList.remove('grabando');
-      sincronizarDesdeForm();
-      programarAutosave();
+      sesionDict = null;
     }
-    recActivo = null;
-    recFieldId = null;
-    recInterim = '';
   }
 
   /* ---------- Buscar / crear inmueble ---------- */
@@ -714,6 +760,16 @@
   /* ---------- Inicio ---------- */
   function init() {
     render();
+    // Delegación: botones B/R/M (evita onclicks inline frágiles en móviles)
+    var listaItems = $('lista-items');
+    if (listaItems) {
+      listaItems.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.est-btn') : null;
+        if (!btn) return;
+        var cont = btn.parentElement;
+        if (cont && cont.id) window.__invSetEst(cont.id, btn.getAttribute('data-est'));
+      });
+    }
     configFirma(1);
     configFirma(2);
     var nombrePrev = null;

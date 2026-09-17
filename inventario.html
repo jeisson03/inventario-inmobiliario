@@ -41,10 +41,14 @@
     .item input[type=number], .item input[type=text] { width: 100%; padding: 8px 6px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; }
     .item input:focus { outline: none; border-color: #FF5500; }
     .estado-btns { display: flex; gap: 3px; }
-    .est-btn { flex: 1; padding: 8px 0; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
-    .est-btn.activo-b { background: #1f8f2f; border-color: #1f8f2f; }
-    .est-btn.activo-r { background: #d88a00; border-color: #d88a00; }
-    .est-btn.activo-m { background: #c22f2f; border-color: #c22f2f; }
+    .est-btn { flex: 1; min-height: 38px; padding: 8px 0; border: 2px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(0,0,0,0.35); color: #fff; font-size: 0.85rem; font-weight: 700; cursor: pointer; -webkit-appearance: none; appearance: none; }
+    .est-btn:active { transform: scale(0.94); }
+    .est-btn.activo-b { background: #177a25; border-color: #4ade80; color: #fff; font-weight: 800; box-shadow: 0 0 0 2px rgba(74,222,128,0.4); }
+    .est-btn.activo-r { background: #b87400; border-color: #ffd166; color: #fff; font-weight: 800; box-shadow: 0 0 0 2px rgba(255,209,102,0.4); }
+    .est-btn.activo-m { background: #a02020; border-color: #ff8787; color: #fff; font-weight: 800; box-shadow: 0 0 0 2px rgba(255,135,135,0.4); }
+    .est-btn.activo-b::before { content: '\2713 '; }
+    .est-btn.activo-r::before { content: '\2713 '; }
+    .est-btn.activo-m::before { content: '\2713 '; }
     .obs-wrap { display: flex; gap: 4px; align-items: flex-end; }
     .obs-wrap textarea { flex: 1; width: 100%; padding: 8px 6px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 40px; }
     .obs-wrap textarea:focus { outline: none; border-color: #FF5500; }

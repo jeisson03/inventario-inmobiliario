@@ -1,7 +1,10 @@
-var CACHE_NAME = 'inventario-v3';
+var CACHE_NAME = 'inventario-v4';
 var urlsToCache = [
   '/inventario-inmobiliario/',
   '/inventario-inmobiliario/index.html',
+  '/inventario-inmobiliario/inventario.html',
+  '/inventario-inmobiliario/inventario.js',
+  '/inventario-inmobiliario/lib/jspdf.umd.min.js',
   '/inventario-inmobiliario/logo.png',
   '/inventario-inmobiliario/icon-192.png',
   '/inventario-inmobiliario/icon-512.png',

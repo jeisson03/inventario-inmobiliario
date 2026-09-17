@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventario Escrito</title>
+  <meta name="theme-color" content="#FF5500">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #111111, #1a1a1a, #000000); min-height: 100vh; color: #fff; }
+    .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+    .header { text-align: center; padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; background: linear-gradient(90deg, #FF5500, #FFB01A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header p { color: #666666; font-size: 0.85rem; margin-top: 4px; }
+    .seccion { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.08); }
+    .seccion-titulo { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; color: #FFB01A; }
+    .campo { margin-bottom: 12px; }
+    .campo label { display: block; font-size: 0.8rem; color: #666666; margin-bottom: 6px; font-weight: 500; }
+    .campo input, .campo textarea, .campo select { width: 100%; padding: 12px 14px; border: 2px solid rgba(255,255,255,0.1); border-radius: 10px; background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem; font-family: inherit; }
+    .campo input:focus, .campo textarea:focus { outline: none; border-color: #FF5500; }
+    .campo textarea { min-height: 64px; resize: vertical; }
+    .boton { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .boton:disabled { opacity: 0.5; cursor: not-allowed; }
+    .boton-primario { background: linear-gradient(90deg, #FF5500, #FFB01A); color: #000; }
+    .boton-secundario { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); margin-top: 8px; }
+    .boton-cancelar { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); margin-top: 8px; }
+    .estado { text-align: center; padding: 12px; border-radius: 10px; margin-top: 12px; font-weight: 500; font-size: 0.9rem; }
+    .estado-activo { background: rgba(255,85,0,0.15); color: #FFB01A; }
+    .estado-guardando { background: rgba(255,176,26,0.15); color: #FFB01A; }
+    .estado-exito { background: rgba(255,85,0,0.15); color: #FFB01A; }
+    .estado-error { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #FF5500; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,85,0,0.3); border-radius: 2px; }
+
+    .item { display: grid; grid-template-columns: 1.1fr 0.45fr 1fr 0.85fr 1.3fr; gap: 6px; align-items: start; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.07); }
+    .item.row-head { border-top: none; position: sticky; top: 0; background: #1a1a1a; z-index: 5; }
+    .item .colh { font-size: 0.68rem; color: #666666; font-weight: 600; text-transform: uppercase; }
+    .item .desc { font-size: 0.82rem; font-weight: 600; padding-top: 10px; line-height: 1.3; }
+    .item input[type=number], .item input[type=text] { width: 100%; padding: 8px 6px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; }
+    .item input:focus { outline: none; border-color: #FF5500; }
+    .estado-btns { display: flex; gap: 3px; }
+    .est-btn { flex: 1; padding: 8px 0; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+    .est-btn.activo-b { background: #1f8f2f; border-color: #1f8f2f; }
+    .est-btn.activo-r { background: #d88a00; border-color: #d88a00; }
+    .est-btn.activo-m { background: #c22f2f; border-color: #c22f2f; }
+    .obs-wrap { display: flex; gap: 4px; align-items: flex-end; }
+    .obs-wrap textarea { flex: 1; width: 100%; padding: 8px 6px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 40px; }
+    .obs-wrap textarea:focus { outline: none; border-color: #FF5500; }
+    .mic { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .mic.grabando { background: #e22; border-color: #e22; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(238,34,34,0.5); } 70% { box-shadow: 0 0 0 12px rgba(238,34,34,0); } 100% { box-shadow: 0 0 0 0 rgba(238,34,34,0); } }
+    .zona-titulo { background: rgba(255,85,0,0.12); border-radius: 8px; padding: 6px 10px; font-size: 0.9rem; font-weight: 700; margin: 18px 0 2px 0; color: #FFB01A; }
+    .zona-titulo:first-child { margin-top: 0; }
+
+    .firma-box { margin-bottom: 14px; }
+    .firma-box .rol { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; color: #FFB01A; }
+    .firma-canvas { width: 100%; height: 120px; background: #fff; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3); touch-action: none; }
+    .firma-acciones { display: flex; gap: 8px; margin-top: 6px; }
+    .firma-acciones .campo { flex: 3; margin: 0; }
+    .firma-acciones input { width: 100%; padding: 8px 10px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.85rem; }
+    .btn-borrar { flex: 1; padding: 8px; border: 2px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.06); color: #ff6b6b; font-size: 0.8rem; cursor: pointer; }
+
+    .volver { display: inline-flex; align-items: center; gap: 6px; color: #FFB01A; font-size: 0.85rem; text-decoration: none; margin-bottom: 10px; }
+    .status-carpeta { font-size: 0.8rem; color: #8892b0; margin-top: 6px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width:420px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container" id="main">
+    <a class="volver" href="index.html">&larr; Volver</a>
+    <div class="header">
+      <h1>Inventario Escrito</h1>
+      <p>Formulario de inventario de apartamento con dictado por voz</p>
+    </div>
+
+    <div class="seccion" id="seccion-inmueble">
+      <div class="seccion-titulo">Inmueble</div>
+      <div class="campo">
+        <label>Nombre del Inmueble</label>
+        <input type="text" id="input-nombre" placeholder="Ej: Calle Principal 123" autocomplete="off">
+      </div>
+      <button class="boton boton-primario" id="btn-buscar" onclick="buscarInmueble()">Buscar / Crear carpeta</button>
+      <div class="status-carpeta" id="status-carpeta"></div>
+      <div class="estado estado-error" id="estado-inmueble" style="display:none;"></div>
+    </div>
+
+    <div id="seccion-form" style="display:none;">
+
+      <div class="seccion">
+        <div class="seccion-titulo">Datos del Inventario</div>
+        <div class="grid2">
+          <div class="campo"><label>FECHA</label><input type="date" id="f_fecha"></div>
+          <div class="campo"><label>UNIDAD</label><input type="text" id="f_unidad" placeholder="Ej: Apto 501"></div>
+        </div>
+        <div class="campo"><label>ARRENDADOR</label><input type="text" id="f_arrendador"></div>
+        <div class="campo"><label>ARRENDATARIO</label><input type="text" id="f_arrendatario"></div>
+        <div class="campo"><label>DIRECCION</label><input type="text" id="f_direccion"></div>
+        <div class="campo"><label>GARAJE #</label><input type="text" id="f_garaje"></div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-titulo">Estado del Inmueble</div>
+        <div class="item row-head">
+          <div class="colh">DESCRIPCION</div>
+          <div class="colh">CANT</div>
+          <div class="colh">TIPO DE MATERIAL</div>
+          <div class="colh">ESTADO</div>
+          <div class="colh">OBSERVACIONES</div>
+        </div>
+        <div id="lista-items"></div>
+        <div style="font-size:0.72rem; color:#5a6580; margin-top:10px; line-height:1.5;">
+          Estado: <b style="color:#1f8f2f;">B</b> = Bueno, <b style="color:#d88a00;">R</b> = Regular, <b style="color:#c22f2f;">M</b> = Malo. &nbsp; Usa el <span style="color:#fff;">&#127908;</span> para dictar las observaciones con la voz.
+        </div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-titulo">NOTAS</div>
+        <div class="campo"><textarea id="f_notas" placeholder="Notas generales..."></textarea></div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-titulo">Inventario de Llaves</div>
+        <div class="item row-head">
+          <div class="colh">DESCRIPCION</div>
+          <div class="colh">CANTIDAD</div>
+          <div class="colh"></div>
+          <div class="colh"></div>
+          <div class="colh">OBSERVACIONES</div>
+        </div>
+        <div id="lista-llaves"></div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-titulo">Observaciones Adicionales</div>
+        <div class="campo"><textarea id="f_observaciones_adicionales" style="min-height:90px;"></textarea></div>
+      </div>
+
+      <div class="seccion">
+        <div class="seccion-titulo">Firmas</div>
+        <div class="firma-box">
+          <div class="rol">QUIEN RECIBE EN REPRESENTACION DE LOS ARRENDATARIOS</div>
+          <canvas class="firma-canvas" id="firma1"></canvas>
+          <div class="firma-acciones">
+            <div class="campo"><label>C.C</label><input type="text" id="cc1"></div>
+            <button class="btn-borrar" onclick="limpiarFirma(1)">Borrar</button>
+          </div>
+        </div>
+        <div class="firma-box">
+          <div class="rol">QUIEN ENTREGA EN REPRESENTACION DE LA INMOBILIARIA</div>
+          <canvas class="firma-canvas" id="firma2"></canvas>
+          <div class="firma-acciones">
+            <div class="campo"><label>C.C</label><input type="text" id="cc2"></div>
+            <button class="btn-borrar" onclick="limpiarFirma(2)">Borrar</button>
+          </div>
+        </div>
+        <div class="campo"><label>DIA / MES / AÑO de firma</label><input type="text" id="f_fecha_firma" placeholder="Ej: 17 de Septiembre de 2026"></div>
+      </div>
+
+      <div class="seccion">
+        <button class="boton boton-primario" id="btn-generar" onclick="generarPDF(false)">Generar PDF</button>
+        <button class="boton boton-secundario" onclick="generarPDF(true)">Generar y Abrir PDF</button>
+        <button class="boton boton-primario" id="btn-guardar" onclick="guardarEnDrive()" style="margin-top:10px;">Guardar en Drive</button>
+        <button class="boton boton-cancelar" onclick="nuevoFormulario()">Nuevo formulario</button>
+        <div class="estado" id="estado-form" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/jspdf.umd.min.js"></script>
+  <script src="inventario.js"></script>
+</body>
+</html>

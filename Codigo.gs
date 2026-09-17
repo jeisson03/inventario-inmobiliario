@@ -14,6 +14,11 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (p.action === 'buscarOCrear') {
+    return ContentService.createTextOutput(JSON.stringify(buscarOCrear(p.nombre)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (p.action === 'listar') {
     return ContentService.createTextOutput(JSON.stringify(listarInmuebles()))
       .setMimeType(ContentService.MimeType.JSON);
@@ -69,6 +74,12 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (data.action === 'guardarInventario') {
+      var result2 = guardarInventario(data.carpetaId, data.base64, data.nombre);
+      return ContentService.createTextOutput(JSON.stringify(result2))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     return ContentService.createTextOutput(JSON.stringify({success: false, error: 'accion no valida'}))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
@@ -84,13 +95,43 @@ function getCarpetaRaiz() {
   return DriveApp.createFolder(CARPETA_RAIZ);
 }
 
+function limpiarNombre(nombre) {
+  return nombre.trim().replace(/[\/\\:*?"<>|]/g, '_').replace(/\s+/g, '_');
+}
+
 function crearInmueble(nombre) {
   try {
     if (!nombre || nombre.trim() === '') throw new Error('Nombre requerido');
-    var limpio = nombre.trim().replace(/[\/\\:*?"<>|]/g, '_').replace(/\s+/g, '_');
+    // Si ya existe una carpeta con el mismo nombre, la reutiliza (evita carpetas duplicadas)
+    var existente = buscarOCrear(nombre);
+    if (existente.success && existente.existente) {
+      return existente;
+    }
+    var limpio = limpiarNombre(nombre);
     var raiz = getCarpetaRaiz();
     var carpeta = raiz.createFolder(limpio);
     return { success: true, id: carpeta.getId(), nombre: nombre };
+  } catch (e) { return { success: false, error: e.message }; }
+}
+
+/**
+ * Busca la carpeta del inmueble por nombre (exacto, con el mismo limpiado que crear).
+ * Si no existe, la crea. Se usa para enlazar el inventario a la carpeta ya creada por las fotos.
+ */
+function buscarOCrear(nombre) {
+  try {
+    if (!nombre || nombre.trim() === '') throw new Error('Nombre requerido');
+    var limpio = limpiarNombre(nombre);
+    var raiz = getCarpetaRaiz();
+    var carpetas = raiz.getFolders();
+    while (carpetas.hasNext()) {
+      var c = carpetas.next();
+      if (c.getName() === limpio) {
+        return { success: true, id: c.getId(), nombre: nombre, existente: true };
+      }
+    }
+    var carpeta = raiz.createFolder(limpio);
+    return { success: true, id: carpeta.getId(), nombre: nombre, existente: false };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
@@ -105,6 +146,20 @@ function guardarFotos(carpetaId, fotos) {
       cnt++;
     }
     return { success: true, fotosGuardadas: cnt };
+  } catch (e) { return { success: false, error: e.message }; }
+}
+
+/**
+ * Guarda el inventario (PDF) dentro de la carpeta del inmueble.
+ * datos: { carpetaId, base64, nombre }
+ */
+function guardarInventario(carpetaId, base64, nombre) {
+  try {
+    var carpeta = DriveApp.getFolderById(carpetaId);
+    var datos = Utilities.base64Decode(base64);
+    var blob = Utilities.newBlob(datos, 'application/pdf', nombre || 'INVENTARIO.pdf');
+    carpeta.createFile(blob);
+    return { success: true, nombre: blob.getName() };
   } catch (e) { return { success: false, error: e.message }; }
 }
 

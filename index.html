@@ -110,6 +110,7 @@
         <input type="text" id="nombre-inmueble" placeholder="Ej: Calle Principal 123">
       </div>
       <button class="boton boton-primario" id="btn-iniciar" onclick="iniciarSesion()">Iniciar</button>
+      <button class="boton boton-secundario" style="margin-top:8px;" onclick="abrirInventario()">&#128221; Llenar Inventario (escritura)</button>
     </div>
 
     <div class="seccion" id="seccion-captura" style="display:none;">
@@ -279,6 +280,20 @@
     var subiendoLock = false;
 
     function estaOnline() { return navigator.onLine; }
+
+    function abrirInventario() {
+      var nombre = document.getElementById('nombre-inmueble').value.trim();
+      if (!nombre) {
+        dbGetAll('config').then(function(configs) {
+          var c = configs.find(function(x) { return x.key === 'inmuebleActual'; });
+          if (c && c.nombre) { nombre = c.nombre; ir(); } else { alert('Ingresa el nombre del inmueble (o inicia una sesión).'); }
+        });
+      } else { ir(); }
+      function ir() {
+        try { localStorage.setItem('inv_nombre_fotos', nombre); } catch (e) {}
+        location.href = 'inventario.html';
+      }
+    }
 
     function iniciarSesion() {
       var nombre = document.getElementById('nombre-inmueble').value.trim();

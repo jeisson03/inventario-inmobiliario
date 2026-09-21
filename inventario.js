@@ -546,26 +546,40 @@
     }
 
     function dibujarEncabezado() {
-      var c = COLS; var x = M; var h = 7;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setFillColor(240, 240, 240);
-      doc.rect(x, Y, c.desc, h, 'F'); doc.text('DESCRIPCION', x + 2, Y + 4.5); x += c.desc;
-      doc.rect(x, Y, c.cant, h, 'F'); doc.text('CANT', x + 2, Y + 4.5); x += c.cant;
-      doc.rect(x, Y, c.mat, h, 'F'); doc.text('TIPO DE MATERIAL', x + 2, Y + 4.5); x += c.mat;
-      doc.rect(x, Y, c.b, h, 'F'); doc.text('B', x + 2.2, Y + 4.5); x += c.b;
-      doc.rect(x, Y, c.r, h, 'F'); doc.text('R', x + 2.2, Y + 4.5); x += c.r;
-      doc.rect(x, Y, c.m, h, 'F'); doc.text('M', x + 2.2, Y + 4.5); x += c.m;
-      doc.rect(x, Y, c.obs, h, 'F'); doc.text('OBSERVACIONES', x + 2, Y + 4.5);
-      doc.setLineWidth(0.2); doc.rect(M, Y, W, h);
+      var c = COLS; var x = M;
+      doc.setDrawColor(0); doc.setLineWidth(0.2);
+      // Fila ESTADO (como el formato original en papel)
+      var he = 4.5;
+      asegurarEspacio(he + 6.5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+      x = M;
+      doc.rect(x, Y, c.desc + c.cant + c.mat, he); x += c.desc + c.cant + c.mat;
+      doc.text('ESTADO', x + (c.b + c.r + c.m) / 2, Y + 3.2, { align: 'center' });
+      doc.rect(x, Y, c.b + c.r + c.m, he); x += c.b + c.r + c.m;
+      doc.rect(x, Y, c.obs, he);
+      doc.setLineWidth(0.8); doc.rect(M, Y, W, he); doc.setLineWidth(0.2);
+      Y += he;
+      // Fila de columnas (fondo blanco como el original)
+      x = M; var h = 6.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+      doc.rect(x, Y, c.desc, h); doc.text('DESCRIPCION', x + 2, Y + 4.5); x += c.desc;
+      doc.rect(x, Y, c.cant, h); doc.text('CANT', x + 2, Y + 4.5); x += c.cant;
+      doc.rect(x, Y, c.mat, h); doc.text('TIPO DE MATERIAL', x + 2, Y + 4.5); x += c.mat;
+      doc.rect(x, Y, c.b, h); doc.text('B', x + 2.2, Y + 4.5); x += c.b;
+      doc.rect(x, Y, c.r, h); doc.text('R', x + 2.2, Y + 4.5); x += c.r;
+      doc.rect(x, Y, c.m, h); doc.text('M', x + 2.2, Y + 4.5); x += c.m;
+      doc.rect(x, Y, c.obs, h); doc.text('OBSERVACIONES', x + 2, Y + 4.5);
+      doc.setLineWidth(0.8); doc.rect(M, Y, W, h); doc.setLineWidth(0.2);
       Y += h;
     }
 
     function filaZona(nombre) {
       var h = 6.5;
       asegurarEspacio(h);
-      doc.setFillColor(224, 224, 224);
-      doc.rect(M, Y, W, h, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+      doc.setDrawColor(0); doc.setLineWidth(0.2);
       doc.text(nombre, M + 2, Y + 4.4);
+      doc.setLineWidth(0.8); doc.rect(M, Y, W, h); doc.setLineWidth(0.2);
       Y += h;
     }
 
@@ -667,15 +681,18 @@
     /* Inventario de llaves */
     if (Y + 8 > 279.4 - 12) nuevaLinea();
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-    doc.text('INVENTARIO LLAVES', M, Y + 4); Y += 7;
+    doc.text('INVENTARIO LLAVES', M + W / 2, Y + 4.4, { align: 'center' });
+    doc.setLineWidth(0.8); doc.rect(M, Y, W, 7); doc.setLineWidth(0.2);
+    Y += 7;
 
     var kCols = { desc: 70, cant: 18, obs: W - 88 };
     function encabezadoLlaves() {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setFillColor(240, 240, 240);
-      doc.rect(M, Y, kCols.desc, 6, 'F'); doc.text('DESCRIPCION', M + 2, Y + 4);
-      doc.rect(M + kCols.desc, Y, kCols.cant, 6, 'F'); doc.text('CANTIDAD', M + kCols.desc + 2, Y + 4);
-      doc.rect(M + kCols.desc + kCols.cant, Y, kCols.obs, 6, 'F'); doc.text('OBSERVACIONES', M + kCols.desc + kCols.cant + 2, Y + 4);
-      doc.setLineWidth(0.2); doc.rect(M, Y, W, 6);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+      doc.setDrawColor(0); doc.setLineWidth(0.2);
+      doc.rect(M, Y, kCols.desc, 6); doc.text('DESCRIPCION', M + 2, Y + 4);
+      doc.rect(M + kCols.desc, Y, kCols.cant, 6); doc.text('CANTIDAD', M + kCols.desc + 2, Y + 4);
+      doc.rect(M + kCols.desc + kCols.cant, Y, kCols.obs, 6); doc.text('OBSERVACIONES', M + kCols.desc + kCols.cant + 2, Y + 4);
+      doc.setLineWidth(0.8); doc.rect(M, Y, W, 6); doc.setLineWidth(0.2);
       Y += 6;
     }
     encabezadoLlaves();

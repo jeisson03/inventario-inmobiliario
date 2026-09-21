@@ -218,7 +218,11 @@
 
   window.__invMic = function (fieldId) {
     if (!SB_WA) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
-    if (sesionDict && sesionDict.activa) { detenerDictado(false); return; }
+    if (sesionDict && sesionDict.activa) {
+      var mismoCampo = sesionDict.fieldId === fieldId;
+      detenerDictado(false);   // apaga la grabación anterior (guarda su texto)
+      if (mismoCampo) return;  // mismo mic: solo detener; otro mic: arrancar en el nuevo campo
+    }
     sesionDict = {
       activa: true,
       fieldId: fieldId,
@@ -242,6 +246,7 @@
     sesionDict.ultIdx = -1;   // los índices se reinician en cada reconocimiento
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
+    sesionDict.rec = rec;   // para poder apagarlo al cambiar de campo o detener
     rec.lang = 'es-CO';
     rec.continuous = false;   // reconocimiento por tramos; se reinicia en onend
     rec.interimResults = true;
@@ -346,7 +351,10 @@
     if (sesionDict) {
       sesionDict.activa = false;
       if (sesionDict.restartT) clearTimeout(sesionDict.restartT);
+      var recVivo = sesionDict.rec;
+      sesionDict.rec = null;
       commitDictado();
+      try { if (recVivo) recVivo.stop(); } catch (e) {}   // apaga el mic de verdad; su onend ya no hace nada
       var b = document.querySelector('[data-field="' + sesionDict.fieldId + '"]');
       if (b) b.classList.remove('grabando');
       sesionDict = null;
@@ -778,7 +786,9 @@
     borrarEstadoLocal();
     estado = null;
     carpetaId = '';
-    location.reload();
+    try { localStorage.removeItem('inv_nombre_fotos'); } catch (e) {}
+    // No usar reload: conservaría ?inmueble= y volvería a cargar los datos anteriores.
+    location.href = location.pathname + '?nuevo=1';
   };
 
   /* ---------- Inicio ---------- */
@@ -796,9 +806,18 @@
     }
     configFirma(1);
     configFirma(2);
-    var nombrePrev = null;
-    try { nombrePrev = localStorage.getItem('inv_nombre_fotos') || new URLSearchParams(location.search).get('inmueble'); } catch (e) {}
-    if (nombrePrev) $('input-nombre').value = nombrePrev;
+    var qs = null;
+    try { qs = new URLSearchParams(location.search); } catch (e) { qs = null; }
+    var forzarNuevo = !!(qs && qs.get('nuevo'));
+    // El pase desde Fotos se consume una sola vez: si no, cada visita recarga los datos anteriores.
+    var handoff = null;
+    try {
+      handoff = localStorage.getItem('inv_nombre_fotos');
+      if (handoff) localStorage.removeItem('inv_nombre_fotos');
+    } catch (e) {}
+    var porParam = (qs && qs.get('inmueble')) || null;
+    var nombrePrev = forzarNuevo ? null : (porParam || handoff);
+    $('input-nombre').value = nombrePrev || '';
     if (nombrePrev && navigator.onLine) $('btn-buscar').click();
   }
 

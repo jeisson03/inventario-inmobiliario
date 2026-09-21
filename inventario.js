@@ -16,16 +16,16 @@
     { nombre: 'ZONA DE ROPAS', items: ['PUERTA', 'CERRADURA', 'PISOS', 'PAREDES', 'TECHOS', 'TOMAS', 'INTERRUPTORES', 'PLAFON', 'INSTALACIONES LAVADORA', 'LAVADERO', 'TENDEDERO DE ROPAS', 'VENTANAS'] },
     { nombre: 'COCINA O COCINETA', items: ['PUERTA', 'CERRADURA', 'VIDRIOS', 'PISOS', 'PAREDES', 'TECHOS', 'TOMAS', 'INTERRUPTORES', 'PLAFON', 'LAVAPLATOS', 'GRIFERIA', 'REJILLA LAVAPLATOS', 'MESON', 'CUBIERTA', 'HORNO', 'MUEBLES SUPERIOR', 'MUEBLE INFERIOR', 'CALENTADOR', 'CAMPANA EXTRACTORA', 'CILINDRO DE GAS', 'BARRA AMERICANA'] },
     { nombre: 'ALCOBA PRINCIPAL', items: ITEMS_ALCOBA.slice() },
-    { nombre: 'ALCOBA No 2', items: ITEMS_ALCOBA.slice() },
-    { nombre: 'ALCOBA No 3', items: ITEMS_ALCOBA.slice() },
-    { nombre: 'ALCOBA No 4', items: ITEMS_ALCOBA.slice() },
+    { nombre: 'ALCOBA N° 2', items: ITEMS_ALCOBA.slice() },
+    { nombre: 'ALCOBA N° 3', items: ITEMS_ALCOBA.slice() },
+    { nombre: 'ALCOBA N° 4', items: ITEMS_ALCOBA.slice() },
     { nombre: 'BAÑO SOCIAL', items: ITEMS_BANO.slice() },
     { nombre: 'BAÑO PRINCIPAL', items: ITEMS_BANO.slice() },
     { nombre: 'BAÑO AUXILIAR', items: ITEMS_BANO.slice() },
     { nombre: 'SALA COMEDOR', items: ['PUERTA', 'CERRADURA', 'VIDRIOS', 'PAREDES', 'REJAS', 'PISOS', 'TECHO', 'TOMAS', 'INTERRUPTORES', 'ROSETAS', 'LAMPARAS', 'GUARDAESCOBAS', 'CHIMENEA', 'PUERTAS'] },
     { nombre: 'COMEDOR AUXILIAR', items: ['PUERTA', 'CERRADURA', 'VIDRIOS', 'PAREDES', 'REJAS', 'PISOS', 'TECHO', 'TOMAS', 'INTERRUPTORES', 'ROSETAS', 'LAMPARAS', 'GUARDAESCOBAS'] },
     { nombre: 'BALCON', items: ['PISOS', 'PAREDES', 'TECHOS', 'TOMAS', 'INTERRUPTORES', 'ROSETAS', 'LAMPARAS', 'PASAMANOS'] },
-    { nombre: 'CUARTO UTIL / GARAJE', items: ['PUERTA', 'CERRADURA', 'REJAS', 'PISOS', 'TECHO', 'TOMAS', 'INTERRUPTORES'] },
+    { nombre: 'CUARTO UTIL / GARAJE #', items: ['PUERTA', 'CERRADURA', 'REJAS', 'PISOS', 'TECHO', 'TOMAS', 'INTERRUPTORES'] },
     { nombre: 'ELEMENTOS ELECTRONICOS', items: ['CITOFONOS', 'INTERRUPTORES', 'CAJA FUSIBLES'] }
   ];
 
@@ -181,19 +181,20 @@
     var cont = $('it_' + idx + '_btns');
     if (!cont || !est) return;
     var btn = cont.querySelector('[data-est="' + est + '"]');
-    if (btn) btn.classList.add('activo-' + est);
+    if (btn) btn.classList.add('activo-' + String(est).toLowerCase());
   }
 
   window.__invSetEst = function (btnsId, est) {
     var cont = $(btnsId);
     if (!cont) return;
     var idx = btnsId.replace(/^it_/, '').replace('_btns', '');
-    var yaActivo = cont.querySelector('[data-est="' + est + '"]').classList.contains('activo-' + est);
+    var estCls = 'activo-' + String(est).toLowerCase();   // el CSS usa minúsculas: activo-b/r/m
+    var yaActivo = cont.querySelector('[data-est="' + est + '"]').classList.contains(estCls);
     cont.querySelectorAll('.est-btn').forEach(function (b) {
       b.classList.remove('activo-b', 'activo-r', 'activo-m');
     });
     if (!yaActivo && estado) {
-      cont.querySelector('[data-est="' + est + '"]').classList.add('activo-' + est);
+      cont.querySelector('[data-est="' + est + '"]').classList.add(estCls);
       estado.items = estado.items || {};
       estado.items[idx] = estado.items[idx] || {};
       estado.items[idx].est = est;
@@ -238,6 +239,7 @@
 
   function lanzarRecon() {
     if (!sesionDict || !sesionDict.activa) return;
+    sesionDict.ultIdx = -1;   // los índices se reinician en cada reconocimiento
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
     rec.lang = 'es-CO';
@@ -315,7 +317,29 @@
     if (a === s) return a;
     if (a.indexOf(s) !== -1) return a;                                  // el tramo ya está contenido (motor repite el acumulado)
     if (s.indexOf(a) !== -1 && s.length - a.length <= 40) return s;     // crecimiento acumulativo pequeño
-    return a + ' ' + s;
+    var resto = sinSolape(a, s);                                        // el motor suele re-decir la cola al reanudar
+    return resto ? a + ' ' + resto : a;
+  }
+
+  function normPalabra(w) { return w.toLowerCase().replace(/^[¿¡"“”'([{]+|[?¿!¡.,;:)"”'\]}]+$/g, ''); }
+
+  // Devuelve `s` sin las palabras iniciales que ya cierran `a` (hasta 10).
+  function sinSolape(a, s) {
+    var pa = a.split(/\s+/), ps = s.split(/\s+/);
+    var max = Math.min(10, pa.length, ps.length), k = 0;
+    for (var n = max; n > 0; n--) {
+      var ok = true;
+      for (var j = 0; j < n; j++) {
+        var w = normPalabra(ps[j]);
+        if (!w || normPalabra(pa[pa.length - n + j]) !== w) { ok = false; break; }
+      }
+      if (ok) {
+        // con 1 sola palabra de solape, exigir palabra larga (evita comerse repeticiones intencionales cortas)
+        if (n === 1 && normPalabra(ps[0]).length < 4) continue;
+        k = n; break;
+      }
+    }
+    return ps.slice(k).join(' ');
   }
 
   function detenerDictado(gra) {

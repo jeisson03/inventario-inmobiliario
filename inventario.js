@@ -99,6 +99,20 @@
     autosaveT = setTimeout(guardarEstadoLocal, 400);
   }
 
+  var logoDataUrl = '';   // logo de la inmobiliaria para el PDF (se carga en segundo plano)
+  function precargarLogo() {
+    try {
+      fetch('logo.png').then(function (r) {
+        return (r && r.ok) ? r.blob() : null;
+      }).then(function (b) {
+        if (!b) return;
+        var fr = new FileReader();
+        fr.onload = function () { logoDataUrl = fr.result || ''; };
+        fr.readAsDataURL(b);
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   function sincronizarDesdeForm() {
     if (!estado) return;
     estado.nombre = $('input-nombre').value.trim();
@@ -247,12 +261,13 @@
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
     sesionDict.rec = rec;   // para poder apagarlo al cambiar de campo o detener
+    var miSesion = sesionDict;   // token: este reconocimiento pertenece a esta sesión y a ninguna otra
     rec.lang = 'es-CO';
     rec.continuous = false;   // reconocimiento por tramos; se reinicia en onend
     rec.interimResults = true;
 
     rec.onresult = function (e) {
-      if (!sesionDict || !sesionDict.activa) return;
+      if (sesionDict !== miSesion || !sesionDict.activa) return;
       var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
         var seg = (e.results[i][0].transcript || '').trim();
@@ -270,17 +285,19 @@
       if (el) el.scrollTop = el.scrollHeight;
     };
     rec.onerror = function (e) {
+      if (sesionDict !== miSesion) return;   // error de una grabación vieja: ignorar
       if (e.error === 'not-allowed') { detenerDictado(true); alert('Permiso de micrófono denegado. Actívalo en los ajustes del Chrome.'); }
       else if (e.error === 'language-not-supported') { detenerDictado(true); alert('El reconocimiento en español no está disponible en este dispositivo.'); }
       // no-speech / aborted / network: se reintenta en onend
     };
     rec.onend = function () {
-      if (sesionDict && sesionDict.activa) {
-        commitDictado();
-        sesionDict.restartT = setTimeout(lanzarRecon, 250);
-      }
+      if (sesionDict !== miSesion || !sesionDict.activa) return;   // reconocimiento viejo: no duplica ni reinicia
+      commitDictado();
+      sesionDict.restartT = setTimeout(function () {
+        if (sesionDict === miSesion) lanzarRecon();
+      }, 250);
     };
-    try { rec.start(); } catch (e) { detenerDictado(true); }
+    try { rec.start(); } catch (e) { if (sesionDict === miSesion) detenerDictado(true); }
   }
 
   function pintarDictado(interim) {
@@ -576,11 +593,14 @@
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
     doc.text('INVENTARIO APARTAMENTO', W / 2 + M, Y + 5, { align: 'center' });
     Y += 12;
+    if (logoDataUrl) {
+      try { doc.addImage(logoDataUrl, 'PNG', M + W - 42, Y, 38, 18.4, undefined, 'FAST'); } catch (e) {}
+    }
     var datosD = [['FECHA:', fmtFecha(estado.fecha)], ['ARRENDADOR:', estado.arrendador], ['ARRENDATARIO:', estado.arrendatario], ['DIRECCION:', estado.direccion], ['UNIDAD:', estado.unidad]];
     datosD.forEach(function (d) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
       doc.text(d[0], M, Y + 3);
-      var lx = M + 42, lw = W - 42;
+      var lx = M + 42, lw = W - 42 - (logoDataUrl ? 48 : 0);
       doc.setFont('helvetica', 'normal');
       if (d[1]) doc.text(String(d[1]), lx + 1, Y + 3);
       doc.setLineWidth(0.2); doc.line(lx, Y + 4, lx + lw, Y + 4);
@@ -794,6 +814,7 @@
   /* ---------- Inicio ---------- */
   function init() {
     render();
+    precargarLogo();
     // Delegación: botones B/R/M (evita onclicks inline frágiles en móviles)
     var listaItems = $('lista-items');
     if (listaItems) {

@@ -12,6 +12,7 @@
     .header { text-align: center; padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; }
     .header h1 { font-size: 1.5rem; font-weight: 700; background: linear-gradient(90deg, #FF5500, #FFB01A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .header p { color: #666666; font-size: 0.85rem; margin-top: 4px; }
+    .logo { max-width: 170px; height: auto; margin-bottom: 8px; }
     .seccion { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.08); }
     .seccion-titulo { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; color: #FFB01A; }
     .campo { margin-bottom: 12px; }
@@ -35,8 +36,8 @@
     ::-webkit-scrollbar-thumb { background: rgba(255,85,0,0.3); border-radius: 2px; }
 
     .item { display: grid; grid-template-columns: 1.1fr 0.45fr 1fr 0.85fr 1.3fr; gap: 6px; align-items: start; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.07); }
-    .item.row-head { border-top: none; position: sticky; top: 0; background: #1a1a1a; z-index: 5; }
-    .item .colh { font-size: 0.68rem; color: #666666; font-weight: 600; text-transform: uppercase; }
+    .item.row-head { border-top: none; position: sticky; top: 0; background: #f2f2f2; z-index: 5; border-radius: 6px; }
+    .item .colh { font-size: 0.68rem; color: #111; font-weight: 700; text-transform: uppercase; }
     .item .desc { font-size: 0.82rem; font-weight: 600; padding-top: 10px; line-height: 1.3; }
     .item input[type=number], .item input[type=text] { width: 100%; padding: 8px 6px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; }
     .item input:focus { outline: none; border-color: #FF5500; }
@@ -76,6 +77,7 @@
   <div class="container" id="main">
     <a class="volver" href="index.html">&larr; Volver</a>
     <div class="header">
+      <img src="logo.png" alt="Andrés Raíz Inmobiliaria" class="logo">
       <h1>Inventario Escrito</h1>
       <p>Formulario de inventario de apartamento con dictado por voz</p>
     </div>
@@ -174,6 +176,6 @@
   </div>
 
   <script src="lib/jspdf.umd.min.js"></script>
-  <script src="inventario.js?v=5"></script>
+  <script src="inventario.js?v=6"></script>
 </body>
 </html>

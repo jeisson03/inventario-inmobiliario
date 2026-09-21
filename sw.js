@@ -1,4 +1,4 @@
-var CACHE_NAME = 'inventario-v5';
+var CACHE_NAME = 'inventario-v6';
 var urlsToCache = [
   '/inventario-inmobiliario/',
   '/inventario-inmobiliario/index.html',

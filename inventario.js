@@ -243,9 +243,11 @@
           '<button type="button" class="est-btn" data-est="M">Malo (M)</button>' +
         '</div>' +
       '</div>') +
+      '<div class="el-escucha" id="esc-' + prefix + '_' + idx + '" style="display:none">🎙 <span></span></div>' +
       '<div class="el-obs"><div class="el-obs-head"><span class="el-etiqueta">Observaciones</span>' +
         '<button type="button" class="mic" data-field="' + pk('obs') + '" onclick="window.__invMic(\'' + pk('obs') + '\')" title="Dictar por voz">🎤</button></div>' +
-        '<textarea id="' + pk('obs') + '" rows="2" placeholder="Daños, desgaste, faltantes…" aria-label="Observaciones"></textarea></div>';
+        '<textarea id="' + pk('obs') + '" rows="2" placeholder="Daños, desgaste, faltantes…" aria-label="Observaciones"></textarea></div>' +
+      '<button type="button" class="voz-cta" id="vozbtn-' + prefix + '_' + idx + '" onclick="window.dictadoElemento(\'' + prefix + '\',\'' + idx + '\')" title="Dictar el elemento completo con la voz">🎙 Dictar elemento</button>';
     return card;
   }
 
@@ -675,6 +677,7 @@
 
   window.__invMic = function (fieldId) {
     if (!SB_WA) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
+    if (vozEA && vozEA.activa) detenerVozEA(true);   // el dictado por campo apaga el estructurado (lo no confirmado se descarta)
     if (sesionDict && sesionDict.activa) {
       var mismoCampo = sesionDict.fieldId === fieldId;
       detenerDictado(false);   // apaga la grabación anterior (guarda su texto)
@@ -820,6 +823,370 @@
       sesionDict = null;
     }
   }
+
+  /* ============================================================
+     Dictado estructurado por elemento (voz inteligente): el asesor
+     dicta en lenguaje natural, se interpreta, se muestra vista previa
+     editable y solo al confirmar se escribe en los campos existentes.
+     No modifica el dictado por campo, el guardado ni el PDF.
+     ============================================================ */
+  var vozEA = null;         // sesión de dictado estructurado activa
+  var vozPendiente = null;  // destino aceptado en la vista previa
+
+  var PALABRAS_NUM = { cero: 0, uno: 1, una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 };
+  var DECENAS = { veinte: 20, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 };
+
+  function normTx(t) {
+    return String(t || '').toLowerCase()
+      .replace(/[áàäâ]/g, 'a').replace(/[éèëê]/g, 'e').replace(/[íìïî]/g, 'i')
+      .replace(/[óòöô]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n')
+      .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function numeroPalabra(w) {
+    var t = normTx(w);
+    if (!t) return null;
+    if (/^\d+$/.test(t)) { var n = parseInt(t, 10); return n <= 999 ? n : null; }
+    if (PALABRAS_NUM.hasOwnProperty(t)) return PALABRAS_NUM[t];
+    var m = t.match(/^(.+)\sy\s(.+)$/);
+    if (m && DECENAS[m[1]] != null && PALABRAS_NUM[m[2]] != null && PALABRAS_NUM[m[2]] < 10) {
+      return DECENAS[m[1]] + PALABRAS_NUM[m[2]];
+    }
+    return null;
+  }
+
+  var INDICE_EL = null;
+  function indiceElementos() {
+    if (INDICE_EL) return INDICE_EL;
+    INDICE_EL = [];
+    ZONAS.forEach(function (z, zi) {
+      z.items.forEach(function (it, ii) {
+        INDICE_EL.push({ tipo: 'it', key: zi + 'x' + ii, nombre: it, norm: normTx(it) });
+      });
+    });
+    LLAVES.forEach(function (it, ki) {
+      INDICE_EL.push({ tipo: 'll', key: String(ki), nombre: it, norm: normTx(it) });
+    });
+    INDICE_EL.sort(function (a, b) { return b.norm.length - a.norm.length; });
+    return INDICE_EL;
+  }
+
+  function variantesNombre(norm) {
+    var v = [norm];
+    if (norm.indexOf(' n ') !== -1) {
+      v.push(norm.split(' n ').join(' no '));
+      v.push(norm.split(' n ').join(' numero '));
+    }
+    return v;
+  }
+
+  function buscarElemento(t, preferidas) {
+    var lista = indiceElementos();
+    var orden = (preferidas || []).concat(lista);
+    var vistos = {};
+    for (var i = 0; i < orden.length; i++) {
+      var e = orden[i];
+      var id = e.tipo + ':' + e.key;
+      if (vistos[id]) continue;
+      vistos[id] = 1;
+      var vars = variantesNombre(e.norm);
+      for (var k = 0; k < vars.length; k++) {
+        var rx = new RegExp('\\b' + vars[k].replace(/ /g, '\\s+') + '\\b');
+        var m = t.match(rx);
+        if (m) return { e: e, hit: m[0] };
+      }
+    }
+    return null;
+  }
+
+  var MARCADORES = ['observaciones', 'observacion', 'presentan', 'presenta', 'cantidad', 'material', 'tienen', 'tiene', 'estado', 'notas', 'nota', 'cant', 'se observan', 'se observa'];
+
+  function segmentar(t) {
+    var segs = {};
+    var alts = MARCADORES.slice().sort(function (a, b) { return b.length - a.length; }).join('|');
+    var rx = new RegExp('\\b(' + alts + ')\\b', 'g');
+    var m, marcas = [];
+    while ((m = rx.exec(t)) !== null) marcas.push({ k: m[1], i: m.index, len: m[0].length });
+    for (var j = 0; j < marcas.length; j++) {
+      var ini = marcas[j].i + marcas[j].len;
+      var fin = (j + 1 < marcas.length) ? marcas[j + 1].i : t.length;
+      var val = t.slice(ini, fin).replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+      var k = marcas[j].k;
+      if (k === 'cantidad' || k === 'cant') { if (!('cant' in segs)) segs.cant = val; }
+      else if (k === 'material') { if (!('mat' in segs)) segs.mat = val; }
+      else if (k === 'estado') { if (!('est' in segs)) segs.est = val; }
+      else { segs.obs = (segs.obs ? segs.obs + ' ' : '') + val; }
+    }
+    return segs;
+  }
+
+  var MAPA_EST_VOZ = { buen: 'B', bueno: 'B', buena: 'B', b: 'B', regular: 'R', r: 'R', mal: 'M', malo: 'M', mala: 'M', m: 'M' };
+
+  function interpretarDictado(texto, preferKeys) {
+    var res = { elemento: null, cant: null, mat: null, est: null, obs: null, avisos: [] };
+    var t = normTx(texto);
+    if (!t) { res.avisos.push('No se escuchó nada. Intenta de nuevo.'); return res; }
+    var lista = indiceElementos();
+    var pref = [];
+    (preferKeys || []).forEach(function (pk) {
+      for (var i = 0; i < lista.length; i++) {
+        if (lista[i].tipo === pk.tipo && String(lista[i].key) === String(pk.key)) { pref.push(lista[i]); break; }
+      }
+    });
+    var hall = buscarElemento(t, pref);
+    var resto = t;
+    if (hall) {
+      res.elemento = { tipo: hall.e.tipo, key: String(hall.e.key), nombre: hall.e.nombre };
+      resto = t.replace(hall.hit, ' ');
+    }
+    var segs = segmentar(t);
+    if ('cant' in segs) {
+      if (!segs.cant) res.avisos.push('Se mencionó cantidad pero sin valor: se deja pendiente.');
+      else {
+        var n = numeroPalabra(segs.cant.split(/\s+/)[0]);
+        if (n == null) res.avisos.push('Cantidad no reconocida («' + segs.cant + '»): se deja pendiente.');
+        else res.cant = n;
+      }
+    }
+    if ('mat' in segs) {
+      var pm = segs.mat.split(/\s+/).filter(function (w) { return !!w; }).slice(0, 5);
+      if (!pm.length) res.avisos.push('Material mencionado pero sin valor: se deja pendiente.');
+      else res.mat = pm.join(' ');
+    }
+    var estCrudo = ('est' in segs && segs.est) ? segs.est.split(/\s+/)[0] : null;
+    if (!estCrudo) {
+      var mp = t.match(/\b(?:en|esta|es|se encuentra)?\s*(buen|bueno|buena|regular|mal|malo|mala)\s+estado\b/);
+      if (mp) {
+        var antes = t.slice(0, mp.index).split(/\s+/).filter(function (w) { return !!w; }).slice(-3).join(' ');
+        estCrudo = (/\b(no|ni|sin|nunca|tampoco)\b/.test(antes) ? 'no ' : '') + mp[1];
+      }
+    }
+    if ('est' in segs && !segs.est && !estCrudo) {
+      res.avisos.push('Se mencionó estado pero sin valor: se deja pendiente.');
+    } else if (estCrudo) {
+      var tok = estCrudo.split(/\s+/);
+      var ult = tok[tok.length - 1];
+      var base = MAPA_EST_VOZ[ult];
+      if (tok.length > 1) res.avisos.push('Estado ambiguo por negación («' + estCrudo + ' estado»): se deja pendiente.');
+      else if (base) res.est = base;
+      else res.avisos.push('Estado no reconocido («' + estCrudo + '»): se deja pendiente. Di bueno, regular o malo.');
+    }
+    if ('obs' in segs) {
+      if (!segs.obs) res.avisos.push('Se mencionaron observaciones pero sin texto: se deja pendiente.');
+      else res.obs = segs.obs;
+    } else if (!('cant' in segs) && !('mat' in segs) && !('est' in segs)) {
+      var limpio = resto.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+      if (limpio.split(/\s+/).length >= 3) res.obs = limpio;
+      else res.avisos.push('No se reconoció ningún campo. Dicta cantidad, material, estado u observaciones.');
+    }
+    return res;
+  }
+
+  function combinarObservacion(previa, nueva, modo) {
+    var p = (previa || '').trim(), n = (nueva || '').trim();
+    if (!n) return p;
+    if (!p) return n;
+    if (modo === 'agregar') return p === n ? p : p + ' ' + n;
+    return n;
+  }
+
+  function leerActual(tipo, key) {
+    var c = tipo === 'll' ? (estado.llaves || {}) : (estado.items || {});
+    var v = c[key] || {};
+    return { cant: v.cant != null ? String(v.cant) : '', mat: v.mat || '', est: v.est || '', obs: v.obs || '' };
+  }
+
+  /* ---------- Motor de captura (reutiliza el reconocimiento existente) ---------- */
+  window.dictadoElemento = function (prefix, idx) {
+    if (!SB_WA) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
+    if (!estado) return;
+    if (vozEA && vozEA.activa) {
+      var mismo = vozEA.tipo === prefix && String(vozEA.key) === String(idx);
+      detenerVozEA(!mismo);   // misma tarjeta: muestra lo captado; otra: descarta y arranca allá
+      if (mismo) return;
+    }
+    if (sesionDict && sesionDict.activa) detenerDictado(false);   // exclusión mutua con dictado por campo
+    var nombre = '';
+    if (prefix === 'll') {
+      nombre = LLAVES[Number(idx)] || ('Llave ' + idx);
+    } else {
+      var partes = String(idx).split('x');
+      var z = ZONAS[Number(partes[0])];
+      nombre = (z && z.items[Number(partes[1])]) || ('Elemento ' + idx);
+    }
+    vozEA = { activa: true, tipo: prefix, key: String(idx), nombre: nombre, texto: '', ultIdx: -1, restartT: null, rec: null, timerMax: null };
+    pintarBotonVoz();
+    lanzarVozEA();
+    vozEA.timerMax = setTimeout(function () {
+      if (vozEA && vozEA.activa) detenerVozEA(false);   // 90 s: cierra y muestra lo captado
+    }, 90000);
+  };
+
+  function pintarBotonVoz() {
+    var ant = document.querySelectorAll('.voz-cta.grabando');
+    for (var i = 0; i < ant.length; i++) ant[i].classList.remove('grabando');
+    var escs = document.querySelectorAll('.el-escucha');
+    for (var j = 0; j < escs.length; j++) escs[j].style.display = 'none';
+    if (vozEA && vozEA.activa) {
+      var b = $('vozbtn-' + vozEA.tipo + '_' + vozEA.key);
+      if (b) b.classList.add('grabando');
+      var e0 = $('esc-' + vozEA.tipo + '_' + vozEA.key);
+      if (e0) { e0.style.display = 'block'; if (e0.lastChild) e0.lastChild.textContent = 'escuchando…'; }
+    }
+  }
+
+  function pintarEscucha(interim) {
+    if (!vozEA) return;
+    var e0 = $('esc-' + vozEA.tipo + '_' + vozEA.key);
+    if (!e0 || !e0.lastChild) return;
+    e0.lastChild.textContent = (vozEA.texto ? vozEA.texto + ' ' : '') + interim;
+  }
+
+  function lanzarVozEA() {
+    if (!vozEA || !vozEA.activa) return;
+    vozEA.ultIdx = -1;   // los índices se reinician en cada reconocimiento
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = new SR();
+    vozEA.rec = rec;
+    var ses = vozEA;   // token: este reconocimiento pertenece a esta sesión
+    rec.lang = 'es-CO';
+    rec.continuous = false;   // por tramos con reinicio, igual que el dictado por campo
+    rec.interimResults = true;
+    rec.onresult = function (e) {
+      if (vozEA !== ses || !vozEA.activa) return;
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var seg = (e.results[i][0].transcript || '').trim();
+        if (e.results[i].isFinal) {
+          if (i > ses.ultIdx && seg) { ses.ultIdx = i; ses.texto = agregarSegmento(ses.texto, seg); }
+        } else {
+          interim += seg;
+        }
+      }
+      pintarEscucha(interim);
+    };
+    rec.onerror = function (e) {
+      if (vozEA !== ses) return;
+      if (e.error === 'not-allowed') { detenerVozEA(true); alert('Permiso de micrófono denegado. Actívalo en los ajustes del Chrome.'); }
+      else if (e.error === 'language-not-supported') { detenerVozEA(true); alert('El reconocimiento en español no está disponible en este dispositivo.'); }
+    };
+    rec.onend = function () {
+      if (vozEA !== ses || !vozEA.activa) return;
+      ses.restartT = setTimeout(function () { if (vozEA === ses) lanzarVozEA(); }, 250);
+    };
+    try { rec.start(); } catch (e) { if (vozEA === ses) detenerVozEA(true); }
+  }
+
+  function detenerVozEA(mostrar) {
+    // mostrar=true: abre la vista previa con lo captado. false: descarta en silencio.
+    if (!vozEA) return;
+    var ses = vozEA;
+    ses.activa = false;
+    if (ses.restartT) clearTimeout(ses.restartT);
+    if (ses.timerMax) clearTimeout(ses.timerMax);
+    var r = ses.rec;
+    ses.rec = null;
+    try { if (r) r.stop(); } catch (e) {}
+    vozEA = null;
+    pintarBotonVoz();
+    if (mostrar) mostrarVistaPrevia(ses);
+  }
+
+  /* ---------- Vista previa y confirmación ---------- */
+  function mostrarVistaPrevia(ses) {
+    if (!estado) return;
+    var preferKeys = [];
+    (function () {
+      var lista = indiceElementos();
+      if (ses.tipo === 'll') {
+        lista.forEach(function (e) { if (e.tipo === 'll') preferKeys.push({ tipo: 'll', key: e.key }); });
+      } else {
+        var zi0 = Number(String(ses.key).split('x')[0]);
+        var gz = null;
+        GRUPOS.forEach(function (g) { if (g.zonas && g.zonas.indexOf(zi0) !== -1) gz = g.zonas; });
+        if (gz) lista.forEach(function (e) {
+          if (e.tipo === 'it' && gz.indexOf(Number(e.key.split('x')[0])) !== -1) preferKeys.push({ tipo: 'it', key: e.key });
+        });
+      }
+    })();
+    var interp = interpretarDictado(ses.texto, preferKeys);
+    var d;
+    if (interp.elemento && (interp.elemento.tipo !== ses.tipo || String(interp.elemento.key) !== String(ses.key))) {
+      d = { tipo: interp.elemento.tipo, key: String(interp.elemento.key), nombre: interp.elemento.nombre, retarget: true };
+    } else {
+      d = { tipo: ses.tipo, key: String(ses.key), nombre: ses.nombre, retarget: false };
+    }
+    vozPendiente = d;
+    var esLl = d.tipo === 'll';
+    $('voz-el').textContent = d.nombre + (d.retarget ? '  ·  mencionaste otro elemento' : '');
+    $('voz-transcript').textContent = ses.texto ? 'Escuchado: «' + ses.texto + '»' : 'No se captó texto.';
+    var actual = leerActual(d.tipo, d.key);
+    $('fila-voz-mat').style.display = esLl ? 'none' : 'block';
+    $('fila-voz-est').style.display = esLl ? 'none' : 'block';
+    $('voz-cant').value = interp.cant != null ? interp.cant : '';
+    $('voz-mat').value = (!esLl && interp.mat) ? interp.mat : '';
+    $('voz-est').value = (!esLl && interp.est) ? interp.est : '';
+    $('voz-obs').value = interp.obs || '';
+    $('voz-cant-act').textContent = 'Actual: ' + (actual.cant !== '' ? actual.cant : '—') + (interp.cant == null ? ' · no mencionado: se conserva' : '');
+    $('voz-mat-act').textContent = 'Actual: ' + (actual.mat !== '' ? actual.mat : '—') + (!interp.mat ? ' · no mencionado: se conserva' : '');
+    $('voz-est-act').textContent = 'Actual: ' + (actual.est !== '' ? actual.est : '—') + (!interp.est ? ' · no mencionado: se conserva' : '');
+    $('voz-obs-act').textContent = 'Actual: ' + (actual.obs !== '' ? '«' + actual.obs + '»' : '—') + (!interp.obs ? ' · no mencionado: se conserva' : '');
+    var box = $('voz-combinar');
+    if (actual.obs && interp.obs) {
+      box.style.display = 'block';
+      var r0 = document.querySelector('input[name="voz-modo"][value="agregar"]');
+      if (r0) r0.checked = true;
+      $('voz-obs-previa').textContent = 'Ya hay: «' + actual.obs + '»';
+    } else {
+      box.style.display = 'none';
+    }
+    var av = $('voz-avisos');
+    av.innerHTML = '';
+    interp.avisos.forEach(function (a) {
+      var p = document.createElement('div');
+      p.className = 'voz-aviso';
+      p.textContent = '• ' + a;
+      av.appendChild(p);
+    });
+    $('voz-modal').style.display = 'flex';
+  }
+
+  window.cancelarVoz = function () {
+    vozPendiente = null;
+    var m = $('voz-modal');
+    if (m) m.style.display = 'none';
+  };
+
+  window.confirmarVoz = function () {
+    if (!vozPendiente || !estado) { window.cancelarVoz(); return; }
+    var d = vozPendiente;
+    var cant = $('voz-cant').value.trim();
+    var mat = $('voz-mat').value.trim();
+    var est = $('voz-est').value;
+    var obs = $('voz-obs').value.trim();
+    var cont = d.tipo === 'll' ? (estado.llaves = estado.llaves || {}) : (estado.items = estado.items || {});
+    cont[d.key] = cont[d.key] || {};
+    if (cant !== '') cont[d.key].cant = cant;
+    if (d.tipo !== 'll' && mat !== '') cont[d.key].mat = mat;
+    if (d.tipo !== 'll' && est !== '') cont[d.key].est = est;
+    if (obs !== '') {
+      var mr = document.querySelector('input[name="voz-modo"]:checked');
+      cont[d.key].obs = combinarObservacion(cont[d.key].obs, obs, mr ? mr.value : 'agregar');
+    }
+    var p = (d.tipo === 'll' ? 'll_' : 'it_') + d.key + '_';
+    var elC = $(p + 'cant');
+    if (elC && cant !== '') elC.value = cant;
+    var elM = $(p + 'mat');
+    if (elM && mat !== '' && d.tipo !== 'll') elM.value = mat;
+    var elO = $(p + 'obs');
+    if (elO && obs !== '') elO.value = cont[d.key].obs;
+    if (est !== '' && d.tipo !== 'll') setEstUi(d.key, est);
+    programarAutosave();
+    programarProgreso();
+    window.cancelarVoz();
+    var card = $('card-' + (d.tipo === 'll' ? 'll_' : 'it_') + d.key);
+    if (card && card.scrollIntoView) { try { card.scrollIntoView({ block: 'center' }); } catch (e) {} }
+  };
 
   /* ---------- Buscar / crear inmueble ---------- */
   window.buscarInmueble = function () {
@@ -1313,5 +1680,5 @@
   document.addEventListener('DOMContentLoaded', init);
 
   /* Hook de prueba (herramienta interna) */
-  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado, GRUPOS: GRUPOS, calcularProgreso: calcularProgreso, elementoEvaluado: elementoEvaluado, llaveEvaluada: llaveEvaluada, listarBorradores: listarBorradores };
+  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado, GRUPOS: GRUPOS, calcularProgreso: calcularProgreso, elementoEvaluado: elementoEvaluado, llaveEvaluada: llaveEvaluada, listarBorradores: listarBorradores, interpretarDictado: interpretarDictado, numeroPalabra: numeroPalabra, combinarObservacion: combinarObservacion };
 })();

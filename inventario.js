@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var API_URL = 'https://script.google.com/macros/s/AKfycbyhvbWHwq-Xw35_we32bCvGP-TwpzhXG-Df_DDQDRlNExZAuAA5F26S2jVL0GWM4gXM/exec';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbxiFwGaFXd0SSWAC-MCEy_5xjSlkvs3SaLXUyOkWullPh9IYPDWO_5fzPKAnOpkrMTB/exec';
 
   /* ---------- Datos del formulario (fiel al PDF original) ---------- */
   var ITEMS_ALCOBA = ['PUERTA', 'CERRADURA', 'VIDRIOS', 'CORTINAS', 'REJAS', 'PISOS', 'PAREDES', 'TECHO', 'TOMAS', 'INTERRUPTORES', 'PLAFON', 'APLIQUES', 'LAMPARAS', 'GUARDAESCOBAS', 'CLOSET/VESTIER', 'PUERTAS', 'CAJONES'];
@@ -30,6 +30,25 @@
   ];
 
   var LLAVES = ['PUERTA PRINCIPAL', 'CHAPA 1', 'CHAPA 2', 'ALCOBA PRINCIPAL', 'ALCOBA No 2', 'ALCOBA No 3', 'ALCOBA No 4', 'ALCOBA DE SERVICIO', 'CUARTO UTIL', 'COCINA', 'GARAJE', 'CLOSET 1', 'CLOSET 2', 'CLOSET 3', 'CLOSET 4', 'VESTIER', 'REJAS', 'CONTROL REMOTO', 'CARNET'];
+
+  /* ---------- Navegación por secciones (solo agrupa la vista; el PDF no cambia) ---------- */
+  var GRUPOS = [
+    { id: 'datos', nombre: 'Datos generales del inmueble', icono: '🏠', tipo: 'datos' },
+    { id: 'general', nombre: 'General y accesos', icono: '🚪', zonas: [0] },
+    { id: 'ropas', nombre: 'Zona de ropas', icono: '👕', zonas: [1] },
+    { id: 'cocina', nombre: 'Cocina o cocineta', icono: '🍳', zonas: [2] },
+    { id: 'alcobas', nombre: 'Alcobas y clósets', icono: '🛏️', zonas: [3, 4, 5, 6] },
+    { id: 'banos', nombre: 'Baños', icono: '🚿', zonas: [7, 8, 9] },
+    { id: 'sala', nombre: 'Sala y comedores', icono: '🛋️', zonas: [10, 11] },
+    { id: 'balcon', nombre: 'Balcón y cuarto útil', icono: '🌇', zonas: [12, 13] },
+    { id: 'electronicos', nombre: 'Elementos electrónicos', icono: '💡', zonas: [14] },
+    { id: 'llaves', nombre: 'Inventario de llaves y controles', icono: '🔑', tipo: 'llaves' },
+    { id: 'cierre', nombre: 'Observaciones y firmas', icono: '✍️', tipo: 'cierre' }
+  ];
+  var SECUENCIA = GRUPOS.map(function (g) { return g.id; });
+  var grupoActual = null;
+  var ordenElementos = [];
+  var idxElemento = -1;
 
   /* ---------- Estado ---------- */
   var estado = null;      // datos del formulario actual
@@ -79,8 +98,15 @@
 
   function claveLocal() { return 'invEscrito_' + (carpetaId || 'temp'); }
   function guardarEstadoLocal() {
-    if (!estado) return;
-    try { localStorage.setItem(claveLocal(), JSON.stringify(estado)); } catch (e) {}
+    if (!estado) return false;
+    try {
+      localStorage.setItem(claveLocal(), JSON.stringify(estado));
+      setPill('Guardado ✓ ' + horaCorta(), 'ok');
+      return true;
+    } catch (e) {
+      setPill('Error al guardar', 'error');
+      return false;
+    }
   }
   function cargarEstadoLocal() {
     try {
@@ -95,8 +121,27 @@
   var autosaveT = null;
   function programarAutosave() {
     if (!estado) return;
+    setPill('Guardando…', 'trabajando');
     if (autosaveT) clearTimeout(autosaveT);
     autosaveT = setTimeout(guardarEstadoLocal, 400);
+  }
+
+  function setPill(txt, cls) {
+    var p = $('save-pill');
+    if (!p) return;
+    p.textContent = txt;
+    p.className = 'savepill' + (cls ? ' ' + cls : '');
+  }
+
+  function horaCorta() {
+    var d = new Date();
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+
+  function marcarSinGuardar() {
+    var p = $('save-pill');
+    if (p && p.className.indexOf('ok') !== -1) setPill('Sin guardar', 'pendiente');
   }
 
   var logoDataUrl = '';   // logo de la inmobiliaria para el PDF (se carga en segundo plano)
@@ -126,47 +171,82 @@
     estado.fechaFirma = $('f_fecha_firma').value;
     estado.cc1 = $('cc1').value;
     estado.cc2 = $('cc2').value;
+    actualizarEncabezado();
   }
 
-  /* ---------- Render del formulario ---------- */
+  /* ---------- Render del formulario (tarjetas por sección) ---------- */
   function render() {
+    construirMenu();
     var cont = $('lista-items');
     cont.innerHTML = '';
-    ZONAS.forEach(function (z, zi) {
-      var zt = document.createElement('div');
-      zt.className = 'zona-titulo';
-      zt.textContent = z.nombre;
-      cont.appendChild(zt);
-      z.items.forEach(function (it, ii) { cont.appendChild(crearFila('it', zi + 'x' + ii, it)); });
+    ordenElementos = [];
+    GRUPOS.forEach(function (g) {
+      if (!g.zonas) return;
+      var pant = document.createElement('div');
+      pant.className = 'pantalla';
+      pant.id = 'pant-' + g.id;
+      pant.style.display = 'none';
+      var na = document.createElement('button');
+      na.type = 'button';
+      na.className = 'na-btn';
+      na.id = 'na-' + g.id;
+      na.setAttribute('onclick', 'alternarNA(\'' + g.id + '\')');
+      na.textContent = 'Marcar sección como no aplica';
+      pant.appendChild(na);
+      g.zonas.forEach(function (zi) {
+        var z = ZONAS[zi];
+        var zt = document.createElement('div');
+        zt.className = 'zona-titulo';
+        zt.textContent = z.nombre;
+        pant.appendChild(zt);
+        z.items.forEach(function (it, ii) {
+          var key = zi + 'x' + ii;
+          pant.appendChild(crearFila('it', key, it));
+          ordenElementos.push({ grupo: g.id, card: 'card-it_' + key });
+        });
+      });
+      cont.appendChild(pant);
     });
     var contL = $('lista-llaves');
     contL.innerHTML = '';
-    LLAVES.forEach(function (it, ki) { contL.appendChild(crearFila('ll', ki, it)); });
+    LLAVES.forEach(function (it, ki) {
+      contL.appendChild(crearFila('ll', String(ki), it));
+      ordenElementos.push({ grupo: 'llaves', card: 'card-ll_' + ki });
+    });
     itemValores(estado);
     cargarVoz();
+    aplicarNA();
+    refrescarVista();
   }
 
   function crearFila(prefix, idx, descripcion) {
-    var row = document.createElement('div');
-    row.className = 'item';
-    var c = function (f) { return prefix + '_' + idx + '_' + f; };
+    var card = document.createElement('div');
+    card.className = 'el-card';
+    card.id = 'card-' + prefix + '_' + idx;
     var pk = function (f) { return prefix + '_' + idx + '_' + f; };
-    row.innerHTML =
-      '<div class="desc">' + esc(descripcion) + '</div>' +
-      (prefix === 'll' ?
-        '<div><input type="number" min="0" id="' + pk('cant') + '" placeholder="0" aria-label="Cantidad"></div>' :
-        '<div><input type="number" min="0" id="' + pk('cant') + '" aria-label="Cantidad"></div>') +
-      '<div><input type="text" id="' + pk('mat') + '" placeholder="---" aria-label="Tipo de material" style="' + (prefix === 'll' ? 'display:none;' : '') + '"></div>' +
-      '<div class="estado-btns" id="' + pk('btns') + '" style="' + (prefix === 'll' ? 'display:none;' : '') + '">' +
-        '<button type="button" class="est-btn" data-est="B">B</button>' +
-        '<button type="button" class="est-btn" data-est="R">R</button>' +
-        '<button type="button" class="est-btn" data-est="M">M</button>' +
+    var esLlave = prefix === 'll';
+    card.innerHTML =
+      '<div class="el-top"><div class="el-nombre">' + esc(descripcion) + '</div>' +
+      '<div class="el-flag">Pendiente</div></div>' +
+      '<div class="el-fila">' +
+        '<label class="el-campo"><span>Cantidad</span>' +
+          '<input type="number" min="0" id="' + pk('cant') + '" placeholder="0" aria-label="Cantidad"></label>' +
+        (esLlave ? '' :
+        '<label class="el-campo"><span>Tipo de material</span>' +
+          '<input type="text" id="' + pk('mat') + '" placeholder="Ej: madera" aria-label="Tipo de material"></label>') +
       '</div>' +
-      '<div class="obs-wrap">' +
-        '<textarea id="' + pk('obs') + '" rows="1" aria-label="Observaciones"></textarea>' +
-        '<button type="button" class="mic" data-field="' + pk('obs') + '" onclick="window.__invMic(\'' + pk('obs') + '\')" title="Dictar por voz">🎤</button>' +
-      '</div>';
-    return row;
+      (esLlave ? '' :
+      '<div class="el-est"><span class="el-etiqueta">Estado</span>' +
+        '<div class="estado-btns" id="' + pk('btns') + '">' +
+          '<button type="button" class="est-btn" data-est="B">Bueno (B)</button>' +
+          '<button type="button" class="est-btn" data-est="R">Regular (R)</button>' +
+          '<button type="button" class="est-btn" data-est="M">Malo (M)</button>' +
+        '</div>' +
+      '</div>') +
+      '<div class="el-obs"><div class="el-obs-head"><span class="el-etiqueta">Observaciones</span>' +
+        '<button type="button" class="mic" data-field="' + pk('obs') + '" onclick="window.__invMic(\'' + pk('obs') + '\')" title="Dictar por voz">🎤</button></div>' +
+        '<textarea id="' + pk('obs') + '" rows="2" placeholder="Daños, desgaste, faltantes…" aria-label="Observaciones"></textarea></div>';
+    return card;
   }
 
   function itemValores(s) {
@@ -217,7 +297,258 @@
       if (estado.items && estado.items[idx]) delete estado.items[idx].est;
       programarAutosave();
     }
+    programarProgreso();
   };
+
+  /* ---------- Menú, navegación, progreso y N/A ---------- */
+  function pantallaDe(gid) {
+    if (gid === 'datos') return $('pant-datos');
+    if (gid === 'llaves') return $('pant-llaves');
+    if (gid === 'cierre') return $('pant-cierre');
+    return $('pant-' + gid);
+  }
+
+  function construirMenu() {
+    var menu = $('vista-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    var t = document.createElement('div');
+    t.className = 'seccion-titulo';
+    t.textContent = 'Secciones del inventario';
+    menu.appendChild(t);
+    GRUPOS.forEach(function (g) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'menu-card';
+      b.id = 'menu-' + g.id;
+      b.innerHTML = '<div class="menu-ico">' + g.icono + '</div>' +
+        '<div class="menu-txt"><div class="menu-nombre">' + esc(g.nombre) + '</div>' +
+        '<div class="menu-sub" id="menuprog-' + g.id + '"></div>' +
+        '<div class="menu-bar"><div class="menu-fill" id="menufill-' + g.id + '"></div></div></div>' +
+        '<div class="menu-badge" id="menubadge-' + g.id + '">0%</div>' +
+        '<div class="menu-chev">›</div>';
+      (function (gid) { b.addEventListener('click', function () { irSeccion(gid); }); })(g.id);
+      menu.appendChild(b);
+    });
+    var leg = document.createElement('div');
+    leg.className = 'menu-legend';
+    leg.innerHTML = 'Estado: <b>B</b> = Bueno, <b>R</b> = Regular, <b>M</b> = Malo. Usa el 🎤 para dictar las observaciones. Marca “no aplica” en las secciones que el inmueble no tenga.';
+    menu.appendChild(leg);
+  }
+
+  function mostrarPantalla(gid) {
+    grupoActual = gid;
+    var menu = $('vista-menu');
+    if (menu) menu.style.display = 'none';
+    GRUPOS.forEach(function (g) {
+      var p = pantallaDe(g.id);
+      if (p) p.style.display = (g.id === gid) ? 'block' : 'none';
+    });
+    var nav = $('nav-foot');
+    if (nav) nav.style.display = 'flex';
+  }
+
+  window.irSeccion = function (gid) {
+    detenerDictado(false);
+    mostrarPantalla(gid);
+    var i = -1;
+    for (var k = 0; k < ordenElementos.length; k++) {
+      if (ordenElementos[k].grupo === gid) { i = k; break; }
+    }
+    idxElemento = i;
+    refrescarNav();
+    window.scrollTo(0, 0);
+    refrescarVista();
+  };
+
+  window.mostrarMenu = function () {
+    detenerDictado(false);
+    grupoActual = null;
+    GRUPOS.forEach(function (g) {
+      var p = pantallaDe(g.id);
+      if (p) p.style.display = 'none';
+    });
+    var menu = $('vista-menu');
+    if (menu) menu.style.display = 'block';
+    var nav = $('nav-foot');
+    if (nav) nav.style.display = 'none';
+    window.scrollTo(0, 0);
+    refrescarVista();
+  };
+
+  function irElemento(k) {
+    if (!ordenElementos.length) return;
+    if (k < 0) k = 0;
+    if (k > ordenElementos.length - 1) k = ordenElementos.length - 1;
+    idxElemento = k;
+    var o = ordenElementos[k];
+    if (grupoActual !== o.grupo) mostrarPantalla(o.grupo);
+    var ant = document.querySelectorAll('.el-card.destacada');
+    for (var i = 0; i < ant.length; i++) ant[i].classList.remove('destacada');
+    var card = $(o.card);
+    if (card) {
+      card.classList.add('destacada');
+      if (card.scrollIntoView) {
+        try { card.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        catch (e) { card.scrollIntoView(); }
+      }
+    }
+    refrescarNav();
+  }
+
+  function guardarCambios() {
+    detenerDictado(false);
+    sincronizarDesdeForm();
+    guardarEstadoLocal();
+  }
+
+  window.elementoAnterior = function () { guardarCambios(); irElemento(idxElemento - 1); };
+  window.elementoSiguiente = function () { guardarCambios(); irElemento(idxElemento + 1); };
+  window.guardarContinuar = function () {
+    guardarCambios();
+    var i = SECUENCIA.indexOf(grupoActual);
+    if (i >= 0 && i < SECUENCIA.length - 1) irSeccion(SECUENCIA[i + 1]);
+    else mostrarMenu();
+  };
+
+  function refrescarNav() {
+    var a = $('btn-ant'), s = $('btn-sig');
+    if (a) a.disabled = !(idxElemento > 0);
+    if (s) s.disabled = !(idxElemento >= 0 && idxElemento < ordenElementos.length - 1);
+  }
+
+  window.alternarNA = function (gid) {
+    if (!estado) return;
+    estado.naSecciones = estado.naSecciones || {};
+    if (estado.naSecciones[gid]) delete estado.naSecciones[gid];
+    else estado.naSecciones[gid] = true;
+    programarAutosave();
+    aplicarNA();
+    refrescarVista();
+  };
+
+  function aplicarNA() {
+    var na = (estado && estado.naSecciones) || {};
+    GRUPOS.forEach(function (g) {
+      if (!g.zonas) return;
+      var marcado = !!na[g.id];
+      var p = $('pant-' + g.id);
+      if (p) {
+        var cards = p.querySelectorAll('.el-card');
+        for (var i = 0; i < cards.length; i++) {
+          if (marcado) cards[i].classList.add('na-dim');
+          else cards[i].classList.remove('na-dim');
+        }
+      }
+      var b = $('na-' + g.id);
+      if (b) {
+        if (marcado) { b.classList.add('activo'); b.textContent = '✓ Esta sección no aplica (tocar para activar)'; }
+        else { b.classList.remove('activo'); b.textContent = 'Marcar sección como no aplica'; }
+      }
+    });
+  }
+
+  function hayDato(v) { return v != null && String(v).trim() !== ''; }
+
+  function elementoEvaluado(key) {
+    var it = (estado && estado.items) ? estado.items[key] : null;
+    return !!(it && (hayDato(it.cant) || hayDato(it.mat) || hayDato(it.est) || hayDato(it.obs)));
+  }
+
+  function llaveEvaluada(ki) {
+    var v = (estado && estado.llaves) ? estado.llaves[ki] : null;
+    return !!(v && (hayDato(v.cant) || hayDato(v.obs)));
+  }
+
+  var CAMPOS_DATOS = ['fecha', 'unidad', 'arrendador', 'arrendatario', 'direccion', 'garaje'];
+  var CAMPOS_FIRMA = ['cc1', 'cc2', 'fechaFirma'];
+
+  function calcularProgreso() {
+    var na = (estado && estado.naSecciones) || {};
+    var res = { grupos: {}, total: 0, listos: 0, pct: 0 };
+    GRUPOS.forEach(function (g) {
+      var total = 0, listos = 0;
+      if (g.zonas) {
+        g.zonas.forEach(function (zi) {
+          ZONAS[zi].items.forEach(function (itm, ii) {
+            total++;
+            if (na[g.id] || elementoEvaluado(zi + 'x' + ii)) listos++;
+          });
+        });
+      } else if (g.tipo === 'llaves') {
+        total = LLAVES.length;
+        LLAVES.forEach(function (itm, ki) { if (llaveEvaluada(ki)) listos++; });
+      } else if (g.tipo === 'datos') {
+        total = CAMPOS_DATOS.length;
+        CAMPOS_DATOS.forEach(function (c) { if (estado && hayDato(estado[c])) listos++; });
+      } else if (g.tipo === 'cierre') {
+        total = CAMPOS_FIRMA.length;
+        CAMPOS_FIRMA.forEach(function (c) { if (estado && hayDato(estado[c])) listos++; });
+      }
+      res.grupos[g.id] = { total: total, listos: listos };
+      res.total += total;
+      res.listos += listos;
+    });
+    res.pct = res.total ? Math.round(res.listos * 100 / res.total) : 0;
+    return res;
+  }
+
+  function pintarProgreso(p) {
+    var fill = $('prog-fill'), tx = $('prog-txt');
+    if (fill) fill.style.width = p.pct + '%';
+    if (tx) tx.textContent = p.pct + '% diligenciado (' + p.listos + ' de ' + p.total + ')';
+    var na = (estado && estado.naSecciones) || {};
+    GRUPOS.forEach(function (g) {
+      var r = p.grupos[g.id];
+      var completo = r.total > 0 && r.listos === r.total;
+      var pct = r.total ? Math.round(r.listos * 100 / r.total) : 0;
+      var sub = $('menuprog-' + g.id), fl = $('menufill-' + g.id), bd = $('menubadge-' + g.id);
+      if (sub) sub.textContent = na[g.id] ? 'No aplica a este inmueble' : (r.listos + ' de ' + r.total);
+      if (fl) fl.style.width = pct + '%';
+      if (bd) {
+        bd.textContent = na[g.id] ? 'N/A' : (completo ? '✓' : pct + '%');
+        bd.className = 'menu-badge' + (na[g.id] ? ' na' : (completo ? ' ok' : ''));
+      }
+    });
+    if (estado) {
+      for (var k = 0; k < ordenElementos.length; k++) {
+        var o = ordenElementos[k];
+        var card = $(o.card);
+        if (!card) continue;
+        var f = card.querySelector('.el-flag');
+        if (!f) continue;
+        var ev = na[o.grupo] || (o.grupo === 'llaves'
+          ? llaveEvaluada(o.card.replace('card-ll_', ''))
+          : elementoEvaluado(o.card.replace('card-it_', '')));
+        f.textContent = ev ? '✓ Listo' : 'Pendiente';
+        f.className = 'el-flag' + (ev ? ' ok' : '');
+      }
+    }
+  }
+
+  var progT = null;
+  function programarProgreso() {
+    if (progT) clearTimeout(progT);
+    progT = setTimeout(function () { progT = null; pintarProgreso(calcularProgreso()); }, 150);
+  }
+
+  function actualizarEncabezado() {
+    var l = $('inv-nombre-linea');
+    if (!l) return;
+    if (estado && hayDato(estado.nombre)) {
+      l.textContent = estado.nombre + (hayDato(estado.direccion) ? ' — ' + String(estado.direccion).trim() : '');
+    } else {
+      var inp = $('input-nombre');
+      var t = inp ? inp.value.trim() : '';
+      l.textContent = t || 'Sin inmueble seleccionado';
+    }
+  }
+
+  function refrescarVista() {
+    actualizarEncabezado();
+    pintarProgreso(calcularProgreso());
+    refrescarNav();
+  }
 
   /* ---------- Dictado por voz ---------- */
   function cargarVoz() {
@@ -417,6 +748,7 @@
     carpetaId = id;
     estado = cargarEstadoLocal() || nuevoEstado(nombre);
     estado.nombre = nombre;
+    estado.naSecciones = estado.naSecciones || {};
     if (!estado.fecha) estado.fecha = hoyISO();
 
     $('seccion-inmueble').style.display = 'none';
@@ -424,14 +756,15 @@
     llenarCampos(estado);
     guardarEstadoLocal();
     vincularAutoguardado();
-    window.scrollTo(0, 0);
+    aplicarNA();
+    mostrarMenu();
   }
 
   function nuevoEstado(nombre) {
     return {
       nombre: nombre, fecha: hoyISO(), unidad: '', arrendador: '', arrendatario: '', direccion: '', garaje: '',
       notas: '', obsAdic: '', fechaFirma: '', cc1: '', cc2: '',
-      items: {}, llaves: {}
+      items: {}, llaves: {}, naSecciones: {}
     };
   }
 
@@ -474,6 +807,8 @@
     var cont = esLl ? (estado.llaves = estado.llaves || {}) : (estado.items = estado.items || {});
     cont[idx] = cont[idx] || {};
     cont[idx][campo] = this.value;
+    marcarSinGuardar();
+    programarProgreso();
   }
 
   /* ---------- Firmas (canvas) ---------- */
@@ -862,5 +1197,5 @@
   document.addEventListener('DOMContentLoaded', init);
 
   /* Hook de prueba (herramienta interna) */
-  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado };
+  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado, GRUPOS: GRUPOS, calcularProgreso: calcularProgreso, elementoEvaluado: elementoEvaluado, llaveEvaluada: llaveEvaluada };
 })();

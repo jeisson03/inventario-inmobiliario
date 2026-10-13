@@ -181,7 +181,7 @@
   </div>
 
   <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbyhvbWHwq-Xw35_we32bCvGP-TwpzhXG-Df_DDQDRlNExZAuAA5F26S2jVL0GWM4gXM/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbwh9GhkDGrCELtC5x-IYhQmeoeryLwqH6-1MiBRXyBppzAVIh4KRGFaqkfZkEQx0G3X/exec';
     var MAX_PARALELOS = 3;
     var LOTE = 5;
     var DB_NAME = 'InventarioAR';
@@ -295,17 +295,35 @@
       }
     }
 
+    function nuevaClave() { return 'web-' + Date.now() + '-' + Math.floor(Math.random() * 1000000000); }
+
     function iniciarSesion() {
       var nombre = document.getElementById('nombre-inmueble').value.trim();
       if (!nombre) { alert('Ingresa un nombre'); return; }
       document.getElementById('btn-iniciar').disabled = true;
 
+      // Si ya hay una sesion activa con este mismo nombre, se continua
+      // (no se crea otra carpeta en Drive)
+      dbGetAll('config').then(function(configs) {
+        var actual = configs.find(function(x) { return x.key === 'inmuebleActual'; });
+        if (actual && actual.nombre === nombre && actual.id) {
+          inmuebleActualId = actual.id;
+          document.getElementById('btn-iniciar').disabled = false;
+          abrirCaptura(nombre, false);
+          return;
+        }
+        crearSesion(nombre);
+      });
+    }
+
+    function crearSesion(nombre) {
       if (estaOnline()) {
-        apiGet({ action: 'crear', nombre: nombre }).then(function(r) {
+        var clave = nuevaClave();
+        apiGet({ action: 'crear', nombre: nombre, clave: clave }).then(function(r) {
           document.getElementById('btn-iniciar').disabled = false;
           if (r && r.success) {
             inmuebleActualId = r.id;
-            dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: nombre });
+            dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: nombre, clave: clave });
             abrirCaptura(nombre, true);
           } else {
             alert('Error al crear inmueble. Intenta de nuevo.');
@@ -317,7 +335,7 @@
       } else {
         var tempId = 'local_' + Date.now();
         inmuebleActualId = tempId;
-        dbPut('config', { key: 'inmuebleActual', id: tempId, nombre: nombre, offline: true });
+        dbPut('config', { key: 'inmuebleActual', id: tempId, nombre: nombre, offline: true, clave: nuevaClave() });
         document.getElementById('btn-iniciar').disabled = false;
         abrirCaptura(nombre, true);
         alert('Sin internet. Fotos se guardan localmente y se subiran cuando haya senal.');
@@ -732,7 +750,8 @@
 
           if (inmConfig && inmConfig.offline && inmConfig.id && inmConfig.id.indexOf('local_') === 0) {
             mostrarEstado('Sincronizando inmueble...', 'guardando');
-            apiGet({ action: 'crear', nombre: inmConfig.nombre }).then(function(r) {
+            var claveSync = inmConfig.clave || nuevaClave();
+            apiGet({ action: 'crear', nombre: inmConfig.nombre, clave: claveSync }).then(function(r) {
               if (r && r.success) {
                 var promises = pendientes.map(function(f) {
                   f.carpetaId = r.id;
@@ -746,7 +765,7 @@
                 });
                 Promise.all(promises).then(function() {
                   inmuebleActualId = r.id;
-                  dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: inmConfig.nombre, offline: false });
+                  dbPut('config', { key: 'inmuebleActual', id: r.id, nombre: inmConfig.nombre, offline: false, clave: claveSync });
                   mostrarEstado('Subiendo fotos...', 'guardando');
                   continuarSubida(r.id);
                 });

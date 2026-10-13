@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var API_URL = 'https://script.google.com/macros/s/AKfycbxiFwGaFXd0SSWAC-MCEy_5xjSlkvs3SaLXUyOkWullPh9IYPDWO_5fzPKAnOpkrMTB/exec';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbwh9GhkDGrCELtC5x-IYhQmeoeryLwqH6-1MiBRXyBppzAVIh4KRGFaqkfZkEQx0G3X/exec';
 
   /* ---------- Datos del formulario (fiel al PDF original) ---------- */
   var ITEMS_ALCOBA = ['PUERTA', 'CERRADURA', 'VIDRIOS', 'CORTINAS', 'REJAS', 'PISOS', 'PAREDES', 'TECHO', 'TOMAS', 'INTERRUPTORES', 'PLAFON', 'APLIQUES', 'LAMPARAS', 'GUARDAESCOBAS', 'CLOSET/VESTIER', 'PUERTAS', 'CAJONES'];

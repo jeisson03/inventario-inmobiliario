@@ -102,6 +102,15 @@
     .btn-borrar { flex: 1; padding: 8px; border: 1.5px solid #e3b3b3; border-radius: 8px; background: #fdecec; color: #a02020; font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
     .volver { display: inline-flex; align-items: center; gap: 4px; color: #e8590c; font-size: 0.9rem; font-weight: 700; text-decoration: none; }
     .status-carpeta { font-size: 0.8rem; color: #6b7280; margin-top: 6px; }
+    .hint-entrante { font-size: 0.8rem; color: #8a5a00; background: #fff4e0; border: 1px solid #ffd166; border-radius: 10px; padding: 8px 10px; margin-top: 8px; line-height: 1.4; }
+    .cambiar-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #d4d9e0; background: #fff; color: #1a1d21; font-weight: 800; font-size: 0.9rem; cursor: pointer; margin-bottom: 10px; font-family: inherit; }
+    .rec-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e3e6ea; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+    .rec-info { flex: 1; min-width: 0; }
+    .rec-nombre { font-weight: 800; font-size: 0.9rem; color: #1a1d21; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rec-fecha { font-size: 0.75rem; color: #6b7280; }
+    .rec-abrir { padding: 10px 16px; border: none; border-radius: 10px; background: linear-gradient(90deg, #FF5500, #FFB01A); color: #1a1d21; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+    .rec-borrar { width: 42px; height: 42px; border-radius: 10px; border: 1.5px solid #e3b3b3; background: #fdecec; color: #a02020; font-weight: 800; font-size: 1rem; cursor: pointer; }
+    .rec-vacio { font-size: 0.85rem; color: #6b7280; padding: 6px 2px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width:420px) { .grid2 { grid-template-columns: 1fr; } }
   </style>
@@ -132,7 +141,10 @@
       </div>
       <button class="boton boton-primario" id="btn-buscar" onclick="buscarInmueble()">Buscar / Crear carpeta</button>
       <div class="status-carpeta" id="status-carpeta"></div>
+      <div class="hint-entrante" id="hint-entrante" style="display:none;"></div>
       <div class="estado estado-error" id="estado-inmueble" style="display:none;"></div>
+      <div class="seccion-titulo" style="margin-top:16px;">Continuar un borrador</div>
+      <div id="lista-recientes"></div>
     </div>
 
     <div id="seccion-form" style="display:none;">
@@ -211,6 +223,6 @@
   </div>
 
   <script src="lib/jspdf.umd.min.js"></script>
-  <script src="inventario.js?v=8"></script>
+  <script src="inventario.js?v=9"></script>
 </body>
 </html>

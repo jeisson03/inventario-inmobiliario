@@ -312,6 +312,12 @@
     var menu = $('vista-menu');
     if (!menu) return;
     menu.innerHTML = '';
+    var ch = document.createElement('button');
+    ch.type = 'button';
+    ch.className = 'cambiar-btn';
+    ch.textContent = '↩ Cambiar de inmueble';
+    ch.addEventListener('click', function () { volverBuscar(); });
+    menu.appendChild(ch);
     var t = document.createElement('div');
     t.className = 'seccion-titulo';
     t.textContent = 'Secciones del inventario';
@@ -531,6 +537,112 @@
     if (progT) clearTimeout(progT);
     progT = setTimeout(function () { progT = null; pintarProgreso(calcularProgreso()); }, 150);
   }
+
+  function mostrarAvisoEntrante(nombre, origen) {
+    var h = $('hint-entrante');
+    if (!h) return;
+    h.style.display = 'block';
+    h.textContent = (origen === 'fotos' ? 'Viene de Fotos' : 'Enlace directo') + ': «' + nombre + '». Pulsa Buscar para continuar o escribe otro nombre.';
+  }
+
+  /* ---------- Borradores: reabrir y cambiar de inmueble ---------- */
+  function listarBorradores() {
+    var out = [];
+    try {
+      var n = 0;
+      try { n = localStorage.length; } catch (e) { n = 0; }
+      for (var i = 0; i < n; i++) {
+        var k = null;
+        try { k = localStorage.key(i); } catch (e) { k = null; }
+        if (!k || k.indexOf('invEscrito_') !== 0) continue;
+        var raw = null;
+        try { raw = localStorage.getItem(k); } catch (e) { raw = null; }
+        if (!raw) continue;
+        var d = null;
+        try { d = JSON.parse(raw); } catch (e2) { d = null; }
+        if (!d) continue;
+        out.push({ key: k, nombre: d.nombre || '(sin nombre)', fecha: d.fecha || '' });
+      }
+    } catch (e) {}
+    return out;
+  }
+
+  function construirRecientes() {
+    var box = $('lista-recientes');
+    if (!box) return;
+    box.innerHTML = '';
+    var arr = listarBorradores();
+    if (!arr.length) {
+      var v = document.createElement('div');
+      v.className = 'rec-vacio';
+      v.textContent = 'No hay borradores en este dispositivo.';
+      box.appendChild(v);
+      return;
+    }
+    arr.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'rec-row';
+      var info = document.createElement('div');
+      info.className = 'rec-info';
+      var nm = document.createElement('div');
+      nm.className = 'rec-nombre';
+      nm.textContent = r.nombre;
+      info.appendChild(nm);
+      if (r.fecha) {
+        var fc = document.createElement('div');
+        fc.className = 'rec-fecha';
+        fc.textContent = fmtFecha(r.fecha);
+        info.appendChild(fc);
+      }
+      row.appendChild(info);
+      var bA = document.createElement('button');
+      bA.type = 'button';
+      bA.className = 'rec-abrir';
+      bA.textContent = 'Abrir';
+      (function (key) { bA.addEventListener('click', function () { abrirBorrador(key); }); })(r.key);
+      row.appendChild(bA);
+      var bB = document.createElement('button');
+      bB.type = 'button';
+      bB.className = 'rec-borrar';
+      bB.textContent = '✕';
+      bB.title = 'Borrar borrador de este dispositivo';
+      (function (key, nombre) { bB.addEventListener('click', function () { borrarBorrador(key, nombre); }); })(r.key, r.nombre);
+      row.appendChild(bB);
+      box.appendChild(row);
+    });
+  }
+
+  window.abrirBorrador = function (key) {
+    guardarCambios();
+    detenerDictado(false);
+    var raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) {}
+    if (!raw) { alert('No se encontró el borrador.'); return; }
+    var id = String(key).replace(/^invEscrito_/, '');
+    var nombre = '';
+    try { nombre = JSON.parse(raw).nombre || ''; } catch (e) {}
+    if (!nombre) { alert('El borrador no tiene nombre de inmueble.'); return; }
+    $('input-nombre').value = nombre;
+    prepararForm(nombre, id);
+  };
+
+  window.borrarBorrador = function (key, nombre) {
+    if (!confirm('¿Borrar el borrador de "' + nombre + '" en este dispositivo? No afecta lo ya guardado en Drive.')) return;
+    try { localStorage.removeItem(key); } catch (e) {}
+    construirRecientes();
+  };
+
+  window.volverBuscar = function () {
+    guardarCambios();
+    var sf = $('seccion-form');
+    if (sf) sf.style.display = 'none';
+    var si = $('seccion-inmueble');
+    if (si) si.style.display = 'block';
+    var h = $('hint-entrante');
+    if (h) h.style.display = 'none';
+    construirRecientes();
+    window.scrollTo(0, 0);
+  };
 
   function actualizarEncabezado() {
     var l = $('inv-nombre-linea');
@@ -1189,13 +1301,17 @@
       if (handoff) localStorage.removeItem('inv_nombre_fotos');
     } catch (e) {}
     var porParam = (qs && qs.get('inmueble')) || null;
+    // El pase de Fotos solo pre-rellena: el asesor decide si buscar o escribir otro nombre.
+    // Solo el enlace explícito ?inmueble= entra directo (viene de una acción concreta).
     var nombrePrev = forzarNuevo ? null : (porParam || handoff);
     $('input-nombre').value = nombrePrev || '';
-    if (nombrePrev && navigator.onLine) $('btn-buscar').click();
+    if (nombrePrev) mostrarAvisoEntrante(nombrePrev, porParam ? 'enlace' : 'fotos');
+    if (porParam && !forzarNuevo && navigator.onLine) $('btn-buscar').click();
+    construirRecientes();
   }
 
   document.addEventListener('DOMContentLoaded', init);
 
   /* Hook de prueba (herramienta interna) */
-  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado, GRUPOS: GRUPOS, calcularProgreso: calcularProgreso, elementoEvaluado: elementoEvaluado, llaveEvaluada: llaveEvaluada };
+  window.__invTest = { construirDoc: construirDoc, ZONAS: ZONAS, LLAVES: LLAVES, nuevoEstado: nuevoEstado, GRUPOS: GRUPOS, calcularProgreso: calcularProgreso, elementoEvaluado: elementoEvaluado, llaveEvaluada: llaveEvaluada, listarBorradores: listarBorradores };
 })();

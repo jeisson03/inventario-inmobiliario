@@ -998,12 +998,13 @@
 
   /* ---------- Motor de captura (reutiliza el reconocimiento existente) ---------- */
   window.dictadoElemento = function (prefix, idx) {
-    if (!SB_WA) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
+    var hayVoz = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!hayVoz) { alert('Tu navegador no soporta dictado por voz. Usa Chrome (celular o computador).'); return; }
     if (!estado) return;
     if (vozEA && vozEA.activa) {
       var mismo = vozEA.tipo === prefix && String(vozEA.key) === String(idx);
-      detenerVozEA(!mismo);   // misma tarjeta: muestra lo captado; otra: descarta y arranca allá
-      if (mismo) return;
+      if (mismo) { solicitarCierre(); return; }   // segundo toque: cierra y PROCESA al terminar
+      detenerVozEA(true);   // otra tarjeta: descarta lo no confirmado y arranca allá
     }
     if (sesionDict && sesionDict.activa) detenerDictado(false);   // exclusión mutua con dictado por campo
     var nombre = '';
@@ -1018,7 +1019,7 @@
     pintarBotonVoz();
     lanzarVozEA();
     vozEA.timerMax = setTimeout(function () {
-      if (vozEA && vozEA.activa) detenerVozEA(false);   // 90 s: cierra y muestra lo captado
+      if (vozEA && vozEA.activa) solicitarCierre();   // 90 s: cierra y muestra lo captado
     }, 90000);
   };
 
@@ -1053,7 +1054,8 @@
     rec.continuous = false;   // por tramos con reinicio, igual que el dictado por campo
     rec.interimResults = true;
     rec.onresult = function (e) {
-      if (vozEA !== ses || !vozEA.activa) return;
+      if (vozEA !== ses) return;
+      if (!ses.activa && !ses.cerrando) return;   // en cierre SÍ se acepta el final tardío
       var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
         var seg = (e.results[i][0].transcript || '').trim();
@@ -1063,6 +1065,7 @@
           interim += seg;
         }
       }
+      ses.interim = interim;   // respaldo por si nunca llega un final
       pintarEscucha(interim);
     };
     rec.onerror = function (e) {
@@ -1071,10 +1074,36 @@
       else if (e.error === 'language-not-supported') { detenerVozEA(true); alert('El reconocimiento en español no está disponible en este dispositivo.'); }
     };
     rec.onend = function () {
-      if (vozEA !== ses || !vozEA.activa) return;
+      if (vozEA !== ses) return;
+      if (ses.cerrando || !ses.activa) { finalizarVozEA(ses); return; }   // cierre: procesa, no reinicia
       ses.restartT = setTimeout(function () { if (vozEA === ses) lanzarVozEA(); }, 250);
     };
     try { rec.start(); } catch (e) { if (vozEA === ses) detenerVozEA(true); }
+  }
+
+  function solicitarCierre() {
+    // Segundo toque: pide el final al motor y PROCESA al terminar (no de inmediato).
+    var ses = vozEA;
+    if (!ses || !ses.activa || ses.cerrando) return;
+    ses.cerrando = true;
+    if (ses.restartT) { clearTimeout(ses.restartT); ses.restartT = null; }
+    var e0 = $('esc-' + ses.tipo + '_' + ses.key);
+    if (e0) {
+      e0.style.display = 'block';
+      if (e0.lastChild) e0.lastChild.textContent = (ses.texto ? ses.texto + ' ' : '') + '…procesando';
+    }
+    try { if (ses.rec) ses.rec.stop(); } catch (e) {}
+    ses.timerCierre = setTimeout(function () { finalizarVozEA(ses); }, 2500);   // red si onend no llega
+  }
+
+  function finalizarVozEA(ses) {
+    if (!ses || vozEA !== ses) return;   // ya se descartó o se reemplazó
+    if (ses.timerCierre) { clearTimeout(ses.timerCierre); ses.timerCierre = null; }
+    if (ses.restartT) { clearTimeout(ses.restartT); ses.restartT = null; }
+    if (ses.timerMax) { clearTimeout(ses.timerMax); ses.timerMax = null; }
+    vozEA = null;
+    pintarBotonVoz();
+    mostrarVistaPrevia(ses);
   }
 
   function detenerVozEA(mostrar) {
@@ -1084,6 +1113,7 @@
     ses.activa = false;
     if (ses.restartT) clearTimeout(ses.restartT);
     if (ses.timerMax) clearTimeout(ses.timerMax);
+    if (ses.timerCierre) clearTimeout(ses.timerCierre);
     var r = ses.rec;
     ses.rec = null;
     try { if (r) r.stop(); } catch (e) {}
@@ -1095,6 +1125,15 @@
   /* ---------- Vista previa y confirmación ---------- */
   function mostrarVistaPrevia(ses) {
     if (!estado) return;
+    // Fusión final + parcial con deduplicación: el parcial solo aporta
+    // lo que el final no trae (nunca duplica); si aporta, se avisa.
+    var bruto = ses.texto || '';
+    var parcial = false;
+    if (ses.interim) {
+      var mezcla = agregarSegmento(bruto, ses.interim);
+      if (mezcla !== bruto) { bruto = mezcla; parcial = true; }
+    }
+    ses.texto = bruto;
     var preferKeys = [];
     (function () {
       var lista = indiceElementos();
@@ -1142,6 +1181,12 @@
     }
     var av = $('voz-avisos');
     av.innerHTML = '';
+    if (parcial) {
+      var pa = document.createElement('div');
+      pa.className = 'voz-aviso';
+      pa.textContent = '• Solo se captó texto parcial: revísalo con cuidado.';
+      av.appendChild(pa);
+    }
     interp.avisos.forEach(function (a) {
       var p = document.createElement('div');
       p.className = 'voz-aviso';
